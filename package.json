@@ -1,6 +1,6 @@
 {
   "name": "job-bingo",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "private": true,
   "description": "面必过 — 实时思路提示（关键词 + 大纲），不代答",
   "workspaces": [
@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "node tools/start.js",
     "start": "node tools/start.js",
-    "test": "node --test \"packages/core/test/*.test.js\" \"packages/asr/**/*.test.js\" \"tools/test/*-test.js\"",
+    "test": "node --test \"packages/core/test/*.test.js\" \"packages/asr/**/*.test.js\" \"tools/test/pipeline-test.js\" \"tools/test/asr-pipeline-test.js\" \"tools/test/busy-retry-test.js\" \"tools/test/ws-auth-test.js\" \"tools/test/config-sanitize-test.js\"",
     "test:core": "node --test \"packages/core/test/*.test.js\"",
     "test:asr": "node --test \"packages/asr/**/*.test.js\"",
     "e2e": "node tools/test/e2e-test.js",
@@ -20,7 +20,8 @@
     "snapshot": "node tools/diag/snapshot-run.js",
     "icons": "node tools/build/icon-run.js",
     "dist:win": "node tools/build/dist.js win",
-    "dist:dir": "node tools/build/dist.js dir"
+    "dist:dir": "node tools/build/dist.js dir",
+    "smoke": "node tools/test/ws-test.js && node tools/test/capture-test.js"
   },
   "build": {
     "appId": "com.jikegang.jobbingo",

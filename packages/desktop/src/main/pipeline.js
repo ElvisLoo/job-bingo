@@ -128,7 +128,20 @@ class Pipeline {
     this.stats.ingested++;
     if (!clean) return { skipped: 'empty' };
 
-    const { role = 'them', force = false, final = true } = opts;
+    const { role = 'them', force = false, final = true, history: extraHistory } = opts;
+
+    // 外部调用方（手机端）带来的上下文：先并进 history 再生成，
+    // 否则多轮追问会被当成独立首问，模型无法消歧。
+    if (Array.isArray(extraHistory) && extraHistory.length) {
+      for (const h of extraHistory.slice(-MAX_HISTORY * 2)) {
+        if (!h || !h.text) continue;
+        const r = h.role === 'me' ? 'me' : 'them';
+        if (!this.history.some((x) => x.role === r && x.text === h.text)) {
+          this.history.push({ role: r, text: String(h.text).slice(0, 2000) });
+        }
+      }
+      this.trimHistory();
+    }
 
     // 自己的发言只进上下文，不生成卡片
     if (role === 'me') {
@@ -325,12 +338,29 @@ class Pipeline {
     // 离线 mock 引擎返回的是占位文本，演示时用预设问题替代，
     // 否则整条链路跑通了却看不出意义。
     let text = String(res.text || '').trim();
+
     // 我方语音不套演示问题：那不是「识别失败」，是刻意不进卡片
-    if (role !== 'me' && (!text || res.engine === 'mock' || res.degradedFrom === 'cloud')) {
+    //
+    // 只有**演示模式**（完全没配 Key）才允许用预设问题占位。
+    // 配了 Key 但转写失败时绝不能伪造问题——那会让用户以为「识别很准」，
+    // 而实际上浮窗里是一张与现场无关的卡，比没有卡更害人。
+    const cfg = this.ctx.getConfig();
+    const demoMode = !cfg.llm || !cfg.llm.apiKey;
+    const asrFailed = !text || res.engine === 'error' || res.degradedFrom === 'cloud';
+
+    if (role !== 'me' && asrFailed && demoMode) {
       text = MOCK_QUESTIONS[(this.mockQIndex++) % MOCK_QUESTIONS.length];
     }
+
     if (!text) {
-      return { durationSec: Number((pcm.length / 16000).toFixed(2)), engine: res.engine, text: '', role, skipped: 'empty' };
+      // 如实上报：这是「本段没听清」，不是「对方问了这个」
+      if (role !== 'me') {
+        this.ctx.pushCard({
+          type: 'error',
+          errors: [{ code: 'ASR_FAIL', reason: String(res.error || res.engine || 'empty').slice(0, 120) }],
+        });
+      }
+      return { durationSec: Number((pcm.length / 16000).toFixed(2)), engine: res.engine, text: '', role, skipped: 'asr-failed' };
     }
 
     await this.ingest(text, { role, force: role === 'them', from: 'asr' });

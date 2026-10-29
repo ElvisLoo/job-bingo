@@ -48,9 +48,14 @@ function deepMerge(base, patch) {
 
 let config = DEFAULT_CONFIG;
 try {
-  if (fs.existsSync(CONFIG_FILE)) config = deepMerge(DEFAULT_CONFIG, JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')));
+  if (fs.existsSync(CONFIG_FILE)) {
+    // 读盘的配置同样要净化：磁盘上可能留着旧版本写坏的 NaN / 字符串 opacity，
+    // 不净化就会在启动时崩在 setOpacity 上，用户根本打不开设置页去改回来。
+    config = sanitizeConfig(deepMerge(DEFAULT_CONFIG, JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'))));
+  }
 } catch (e) {
   console.warn('[config] 读取失败，使用默认值', e.message);
+  config = DEFAULT_CONFIG;
 }
 function saveConfig() {
   try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8'); } catch (e) { console.warn(e.message); }
@@ -262,7 +267,13 @@ const pipeline = new Pipeline({
 });
 
 async function answerQuestion(question, history, from) {
-  const r = await pipeline.ingest(question, { force: true, from: from || 'desktop' });
+  // history 之前被签名接住却从未使用：手机端传来的多轮上下文全部丢失，
+  // 追问时模型看不到前文，答非所问。这里真正接到流水线里。
+  const r = await pipeline.ingest(question, {
+    force: true,
+    from: from || 'desktop',
+    history: Array.isArray(history) ? history : undefined,
+  });
   if (r.skipped) return { ok: false, error: `已被流水线跳过：${r.skipped}` };
   if (!r.ok) return { ok: false, errors: r.errors, error: r.error };
   return { ok: true, card: r.card, attempts: r.attempts, mocked: !!r.mocked };
@@ -327,11 +338,19 @@ ipcMain.handle('review:openFolder', async () => {
 });
 
 ipcMain.handle('review:clear', async () => {
-  pipeline.transcript = [];
+  // 之前只清 transcript，history 还留着上一场的内容，
+  // 「清空复盘」之后新一场仍会带着旧上下文去消歧。
+  pipeline.reset();
   return { ok: true };
 });
 
 ipcMain.handle('review:count', async () => ({ count: pipeline.getTranscript().length }));
+
+// 配对码只通过本机 IPC 给设置页，不经网络暴露
+ipcMain.handle('ws:token', async () => {
+  const addr = lanAddress();
+  return { token: wsToken, port: config.ws.port, url: `ws://${addr}:${config.ws.port}/?token=${wsToken}` };
+});
 
 // 喂入 WAV：验证「音频进 → 卡片出」的完整链路
 ipcMain.handle('asr:feedWav', async () => {
@@ -399,16 +418,71 @@ ipcMain.handle('config:get', () => ({
   version: app.getVersion(),
 }));
 
+/**
+ * 配置净化：任何来自渲染层的 patch 都必须先过这里。
+ *
+ * 为什么不能直接用：一次 opacity:"abc" 就会让 setOpacity 抛 TypeError，
+ * 而且非法值已经落盘，重启后继续崩——用户只能去手动删配置文件。
+ * busy.retryMinutes 传 1e9 更糟：setTimeout 溢出成 1ms，退避变成疯狂重试。
+ */
+function clampNum(v, min, max, def) {
+  // v 为 null / '' / 布尔时 Number() 会得到 0 或 1，看起来「合法」，
+  // 于是被夹到边界值而不是回落默认——设置页清空输入框就会触发。
+  if (v === null || v === undefined || v === '' || typeof v === 'boolean') return def;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : def;
+}
+
+function sanitizeConfig(c) {
+  const base = DEFAULT_CONFIG;
+  const o = (c && c.overlay) || {};
+  const b = (c && c.busy) || {};
+  const w = (c && c.ws) || {};
+  return {
+    ...c,
+    llm: {
+      baseUrl: String(o.baseUrl != null ? o.baseUrl : ((c.llm && c.llm.baseUrl) || base.llm.baseUrl)).trim(),
+      apiKey: String((c.llm && c.llm.apiKey) || '').trim(),
+      model: String((c.llm && c.llm.model) || base.llm.model).trim(),
+    },
+    overlay: {
+      opacity: clampNum(o.opacity, 0.35, 1, base.overlay.opacity),
+      through: o.through !== false,
+      width: Math.round(clampNum(o.width, 360, 2400, base.overlay.width)),
+      height: Math.round(clampNum(o.height, 140, 1200, base.overlay.height)),
+      top: Math.round(clampNum(o.top, 0, 4000, base.overlay.top)),
+      taskbar: !!o.taskbar,
+      solid: !!o.solid,
+    },
+    busy: {
+      retryMinutes: clampNum(b.retryMinutes, 1, 120, base.busy.retryMinutes),
+      maxWaitMinutes: clampNum(b.maxWaitMinutes, 1, 1440, base.busy.maxWaitMinutes),
+    },
+    ws: {
+      enabled: w.enabled !== false,
+      port: Math.round(clampNum(w.port, 1024, 65535, base.ws.port)),
+    },
+  };
+}
+
 ipcMain.handle('config:set', (_e, patch) => {
-  config = deepMerge(config, patch);
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+    return { ok: false, error: '配置格式不正确' };
+  }
+  const before = config;
+  config = sanitizeConfig(deepMerge(config, patch));
   saveConfig();
-  if (overlay) {
+  if (overlay && !overlay.isDestroyed()) {
     overlay.setOpacity(config.overlay.opacity);
     if (config.overlay.through !== mouseThrough) { mouseThrough = config.overlay.through; applyMouseThrough(); }
   }
   applyContentProtection();
   refreshTrayMenu();
-  return { ok: true, config };
+
+  // 端口改了必须告诉用户「要重启」——WebSocketServer 只在启动时创建，
+  // 否则用户会以为改完就生效，实际还在旧端口上。
+  const needRestart = before.ws && before.ws.port !== config.ws.port;
+  return { ok: true, config, needRestart };
 });
 
 ipcMain.handle('resume:load', async () => {
@@ -475,6 +549,19 @@ function lanAddress() {
   return '127.0.0.1';
 }
 
+// ---------- 手机端配对码 ----------
+// 每次启动随机生成，不落盘。不鉴权的话，同一局域网内任何人都能：
+// 读走每张思路卡、触发付费模型调用、甚至远程开关麦克风采集。
+const wsToken = require('crypto').randomBytes(9).toString('base64url');
+
+/** 定长比较，避免按字符逐位比较带来的时序侧信道 */
+function timingSafeEqualStr(a, b) {
+  const ba = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  if (ba.length !== bb.length) return false;
+  return require('crypto').timingSafeEqual(ba, bb);
+}
+
 function startWs() {
   if (!config.ws.enabled) return null;
   let WebSocketServer;
@@ -483,11 +570,23 @@ function startWs() {
     return null;
   }
   // 绑定 0.0.0.0：手机端要能连进来（同一局域网）
-  const wss = new WebSocketServer({ port: config.ws.port, host: '0.0.0.0' });
+  // 但必须鉴权：否则同一 Wi-Fi 下任何人都能读到每张卡、触发模型调用、
+  // 甚至远程开关麦克风采集。配对码每次启动随机生成，只显示在本机设置页。
+  const wss = new WebSocketServer({
+    port: config.ws.port,
+    host: '0.0.0.0',
+    verifyClient: (info, cb) => {
+      try {
+        const u = new URL(info.req.url || '/', 'ws://localhost');
+        const t = u.searchParams.get('token');
+        cb(!!t && timingSafeEqualStr(t, wsToken), 401, 'bad token');
+      } catch (_) { cb(false, 400, 'bad request'); }
+    },
+  });
   wss.on('listening', () => {
     const addr = lanAddress();
-    pushCard({ type: 'status', text: `手机端地址 ws://${addr}:${config.ws.port}` });
-    console.log(`[面必过] 手机端接入地址 ws://${addr}:${config.ws.port}`);
+    pushCard({ type: 'status', text: `手机端地址 ws://${addr}:${config.ws.port}/?token=配对码` });
+    console.log(`[面必过] 手机端接入 ws://${addr}:${config.ws.port}/?token=${wsToken}`);
   });
   wss.on('connection', (ws) => {
     wsClients.add(ws);

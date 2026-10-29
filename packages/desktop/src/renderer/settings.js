@@ -66,7 +66,14 @@ function showPreview(card, errors) {
   p.hidden = false;
   if (!card) {
     p.className = 'preview err';
-    p.innerHTML = `<div class="anchor">生成失败 · 校验器拦截</div><pre>${(errors || []).map((e) => '· ' + e.reason).join('\n')}</pre>`;
+    // 不能用 innerHTML 拼 reason：它来自模型原始输出，
+    // 未转义就等于把模型/代理返回的字符串当 HTML 执行。
+    const head = document.createElement('div');
+    head.className = 'anchor';
+    head.textContent = '生成失败 · 校验器拦截';
+    const pre = document.createElement('pre');
+    pre.textContent = (errors || []).map((e) => "· " + ((e && e.reason) || "未知原因")).join(String.fromCharCode(10));
+    p.replaceChildren(head, pre);
     return;
   }
   p.className = 'preview';
@@ -74,7 +81,7 @@ function showPreview(card, errors) {
     <div class="anchor">锚点：${escapeHtml(card.anchor?.label || '—')}</div>
     <ul>${(card.points || []).map((x) => `<li>${escapeHtml(x.text)}</li>`).join('')}</ul>
     ${card.caution ? `<div class="caution">⚠ ${escapeHtml(card.caution)}</div>` : ''}
-    <div class="meta">${card.meta?.model || ''} · 尝试 ${card.meta?.attempt || 1} 次 · 锚点库 ${card.meta?.anchorCount ?? 0} 条</div>`;
+    <div class="meta">${escapeHtml(card.meta?.model || '')} · 尝试 ${card.meta?.attempt || 1} 次 · 锚点库 ${card.meta?.anchorCount ?? 0} 条</div>`;
 }
 
 function escapeHtml(s) {

@@ -201,3 +201,67 @@ test('split=false：一句话只转写一次，不被再切段', async () => {
   const b = await p.feedWav(wav, { role: 'them', split: true });
   assert.ok(b.segments >= 3, `split=true 应切出多段，实际 ${b.segments}`);
 });
+
+// ---------------- 转写失败不得伪造问题 ----------------
+
+test('配了 Key 但转写失败：报错，不拿预设问题冒充真实提问', async () => {
+  const asr = require('@job-bingo/asr');
+  const { Pipeline } = require('../../packages/desktop/src/main/pipeline');
+  const pushed = [];
+  const p = new Pipeline({
+    // 有 Key → 不是演示模式
+    getConfig: () => ({ llm: { apiKey: 'sk-test' }, jd: '' }),
+    getResume: () => ({}),
+    pushCard: (x) => pushed.push(x),
+  });
+  // 注入一个必定失败的 ASR 路由器
+  p.router = { transcribe: async () => { throw new Error('network down'); } };
+  p.ensureAsr = () => p.router;
+
+  const pcm = asr.synthSpeechLike({ cycles: 1, silenceSec: 0.3, speechSec: 0.8, freq: 440, amp: 0.35 });
+  const r = await p.feedPcm(pcm, { role: 'them' });
+
+  assert.equal(r.skipped, 'asr-failed');
+  assert.equal(r.text, '');
+  const cards = pushed.filter((x) => x.type === 'card');
+  assert.equal(cards.length, 0, '不得出卡：现场没听清就不该给一张无关的卡');
+  const errs = pushed.filter((x) => x.type === 'error');
+  assert.ok(errs.length >= 1, '应当如实上报 ASR_FAIL');
+  assert.equal(errs[0].errors[0].code, 'ASR_FAIL');
+});
+
+test('演示模式（无 Key）仍允许用预设问题跑通全链路', async () => {
+  const asr = require('@job-bingo/asr');
+  const { Pipeline } = require('../../packages/desktop/src/main/pipeline');
+  const pushed = [];
+  const p = new Pipeline({
+    getConfig: () => ({ llm: { apiKey: '' }, jd: '' }),
+    getResume: () => ({}),
+    pushCard: (x) => pushed.push(x),
+  });
+  p.router = { transcribe: async () => ({ text: '', engine: 'mock' }) };
+  p.ensureAsr = () => p.router;
+
+  const pcm = asr.synthSpeechLike({ cycles: 1, silenceSec: 0.3, speechSec: 0.8, freq: 440, amp: 0.35 });
+  await p.feedPcm(pcm, { role: 'them' });
+  assert.ok(pushed.filter((x) => x.type === 'card').length >= 1, '演示模式应出卡');
+});
+
+test('手机端带来的 history 会并入上下文', async () => {
+  const { Pipeline } = require('../../packages/desktop/src/main/pipeline');
+  const p = new Pipeline({
+    getConfig: () => ({ llm: { apiKey: '' }, jd: '' }),
+    getResume: () => ({}),
+    pushCard: () => {},
+  });
+  await p.ingest('你上一个项目的规模有多大', {
+    force: true,
+    history: [
+      { role: 'them', text: '说说你做过什么项目' },
+      { role: 'me', text: '做过一个 ERP 成本核算' },
+    ],
+  });
+  const h = p.history.map((x) => x.text);
+  assert.ok(h.some((t) => t.includes('做过什么项目')), '手机端上下文应被采纳');
+  assert.ok(h.some((t) => t.includes('ERP 成本核算')));
+});
