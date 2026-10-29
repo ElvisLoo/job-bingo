@@ -212,7 +212,7 @@ function startCapture() {
 
   win = new BrowserWindow({
     width: 520,
-    height: 300,
+    height: 360,   // 先给个够用的初始高度，加载完再按实际内容修正
     icon: require('./tray-icon').createAppIcon(),
     // 保持可见：隐藏窗口里 getDisplayMedia 可能拿不到流（实测 0 帧）。
     // 该窗口只显示采集状态，不显示任何画面内容。
@@ -238,6 +238,20 @@ function startCapture() {
     console.warn('[capture]', state.lastError);
   });
   win.loadFile(path.join(__dirname, '..', 'renderer', 'audio-capture.html'));
+
+  // 内容高度写死在代码里迟早会被改破（加一行状态就溢出）。
+  // 这里等页面渲染完，量一次真实高度再调窗口，底部指标不会再被裁掉。
+  win.webContents.once('did-finish-load', async () => {
+    try {
+      const h = await win.webContents.executeJavaScript(
+        'Math.ceil(document.querySelector(".app").getBoundingClientRect().height) + 4'
+      );
+      if (Number.isFinite(h) && h > 200 && h < 900) {
+        const [w] = win.getSize();
+        win.setSize(w, h);
+      }
+    } catch (_) { /* 量不到就保持默认高度 */ }
+  });
 
   if (!vad) vad = new asr.VadSegmenter();
   else vad.reset();
