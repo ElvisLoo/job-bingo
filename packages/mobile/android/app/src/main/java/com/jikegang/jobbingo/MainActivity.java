@@ -1,4 +1,4 @@
-package com.elvisloo.interviewcopilot;
+package com.jikegang.jobbingo;
 
 import com.getcapacitor.BridgeActivity;
 

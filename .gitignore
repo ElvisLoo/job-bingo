@@ -77,3 +77,6 @@ electron.log
 
 # 临时拼接文件
 .readme-section.md
+
+# 旧 Java 包路径（已迁至 com/jikegang/jobbingo）
+packages/mobile/android/app/src/main/java/com/elvisloo/

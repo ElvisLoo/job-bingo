@@ -23,7 +23,7 @@
     "dist:dir": "node tools/build/dist.js dir"
   },
   "build": {
-    "appId": "com.elvisloo.jobbingo",
+    "appId": "com.jikegang.jobbingo",
     "productName": "面必过",
     "copyright": "Copyright © 2026 面必过 contributors",
     "directories": {

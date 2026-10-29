@@ -14,7 +14,7 @@
     "ws": "^8.18.0"
   },
   "build": {
-    "appId": "com.elvisloo.jobbingo",
+    "appId": "com.jikegang.jobbingo",
     "productName": "面必过",
     "electronVersion": "33.4.11",
     "copyright": "Copyright © 2026 面必过 contributors",

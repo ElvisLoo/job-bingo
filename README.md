@@ -131,7 +131,7 @@ job-bingo/                      面必过 · 仓库与包名统一用 job-bingo
 | 英文产品名 | **job_bingo** |
 | 仓库名 / 目录名 | `job-bingo` |
 | npm 包命名空间 | `@job-bingo/*` |
-| Electron appId | `com.elvisloo.jobbingo` |
+| Electron appId | `com.jikegang.jobbingo` |
 | 安装包 | `面必过-<版本>-x64.exe` |
 
 > 为什么英文名和仓库名不一样：`_` 在 npm 包名与 Java 包名（appId）里不合法，
