@@ -1,0 +1,68 @@
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; height: 100%;
+  background: #0d121e; color: #e8ecf5;
+  font: 15px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+body { display: flex; flex-direction: column; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+
+.top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.brand { font-size: 16px; font-weight: 600; }
+.conn { font-size: 12px; color: #6b768d; }
+.conn.on { color: #34d399; }
+
+.stage { flex: 1; padding: 18px; overflow-y: auto; }
+.hint { text-align: center; color: #6b768d; margin-top: 40px; font-size: 14px; line-height: 1.9; }
+.small { font-size: 12px; color: #4d576b; }
+
+.wave { display: flex; gap: 5px; justify-content: center; align-items: flex-end; height: 44px; margin: 26px 0; }
+.wave span {
+  width: 5px; background: #2563eb; border-radius: 3px; height: 10px;
+  animation: bounce 900ms ease-in-out infinite;
+}
+.wave span:nth-child(2) { animation-delay: 120ms; }
+.wave span:nth-child(3) { animation-delay: 240ms; }
+.wave span:nth-child(4) { animation-delay: 360ms; }
+.wave span:nth-child(5) { animation-delay: 480ms; }
+@keyframes bounce { 0%,100% { height: 10px; } 50% { height: 38px; } }
+
+.card {
+  background: #151d2c; border: 1px solid rgba(96,165,250,.22);
+  border-radius: 12px; padding: 14px 16px;
+  animation: fade 140ms ease-out both;
+}
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.anchor { font-size: 12px; color: #93c5fd; margin-bottom: 8px; }
+.points { margin: 0; padding-left: 18px; }
+.points li { font-size: 17px; line-height: 1.8; }
+.caution { margin-top: 8px; font-size: 13px; color: #fbbf24; }
+
+.status { margin-top: 14px; text-align: center; font-size: 12.5px; color: #6b768d; min-height: 20px; }
+
+.bottom { padding: 14px 18px 20px; border-top: 1px solid rgba(255,255,255,.07); }
+.mic {
+  width: 100%; padding: 16px; border-radius: 14px; border: none;
+  background: #2563eb; color: #fff; font-size: 16px; font-weight: 600;
+}
+.mic:active { background: #1d4ed8; }
+.mic.recording { background: #dc2626; }
+.row { display: flex; gap: 8px; margin-top: 10px; }
+.row input {
+  flex: 1; background: #161d2c; border: 1px solid rgba(255,255,255,.1);
+  color: #e8ecf5; border-radius: 8px; padding: 9px 11px; font-size: 13px;
+}
+.ghost {
+  background: transparent; border: 1px solid rgba(255,255,255,.14);
+  color: #dfe5f0; border-radius: 8px; padding: 9px 14px; font-size: 13px;
+}
+
+/* 说话人选择：决定这段录音是「我在答」还是「对方在问」 */
+.who { display: flex; gap: 8px; margin-bottom: 10px; }
+.who .seg {
+  flex: 1; padding: 8px 0; border-radius: 10px; border: 1px solid #2a3550;
+  background: #141c2c; color: #8ea0bf; font-size: 13px;
+}
+.who .seg.on { background: #1e3358; border-color: #3b6ea5; color: #e6f0ff; font-weight: 600; }

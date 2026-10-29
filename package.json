@@ -1,0 +1,75 @@
+{
+  "name": "job-bingo",
+  "version": "0.1.3",
+  "private": true,
+  "description": "面必过 — 实时思路提示（关键词 + 大纲），不代答",
+  "workspaces": [
+    "packages/core",
+    "packages/asr",
+    "packages/desktop"
+  ],
+  "scripts": {
+    "dev": "node tools/start.js",
+    "start": "node tools/start.js",
+    "test": "node --test \"packages/core/test/*.test.js\" \"packages/asr/**/*.test.js\" \"tools/test/*-test.js\"",
+    "test:core": "node --test \"packages/core/test/*.test.js\"",
+    "test:asr": "node --test \"packages/asr/**/*.test.js\"",
+    "e2e": "node tools/test/e2e-test.js",
+    "ws": "node tools/test/ws-test.js",
+    "mock-server": "node tools/test/mock-llm-server.js",
+    "snapshot": "node tools/diag/snapshot-run.js",
+    "icons": "node tools/build/icon-run.js",
+    "dist:win": "node tools/build/dist.js win",
+    "dist:dir": "node tools/build/dist.js dir"
+  },
+  "build": {
+    "appId": "com.elvisloo.jobbingo",
+    "productName": "面必过",
+    "copyright": "Copyright © 2026 面必过 contributors",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "packages/**/*",
+      "package.json",
+      "!packages/**/test/**",
+      "!packages/**/*.log",
+      "!**/.DS_Store"
+    ],
+    "extraResources": [
+      {
+        "from": "packages/desktop/assets",
+        "to": "assets"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "packages/desktop/assets/tray-256.png",
+      "artifactName": "面必过-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "面必过"
+    },
+    "portable": {
+      "artifactName": "面必过-${version}-${arch}-便携版.${ext}"
+    },
+    "asar": true,
+    "compression": "maximum"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^26.18.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ElvisLoo/job-bingo.git"
+  },
+  "homepage": "https://github.com/ElvisLoo/job-bingo"
+}

@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面试副驾 — 需求与架构规划书 v0.1</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --line:#e4e7ec; --line-strong:#d0d5dd;
+  --tx:#101828; --tx2:#475467; --tx3:#98a2b3;
+  --blue:#185fa5; --blue-bg:#e6f1fb; --blue-line:#b5d4f4;
+  --teal:#0f6e56; --teal-bg:#e1f5ee; --teal-line:#9fe1cb;
+  --amber:#854f0b; --amber-bg:#faeeda; --amber-line:#fac775;
+  --red:#a32d2d; --red-bg:#fcebeb; --red-line:#f7c1c1;
+  --purple:#534ab7; --purple-bg:#eeedfe; --purple-line:#cecbf6;
+  --gray-bg:#f1efe8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",system-ui,-apple-system,sans-serif;font-size:14px;line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:56px 32px 100px}
+h1{font-size:30px;font-weight:600;letter-spacing:-.5px;line-height:1.35}
+h2{font-size:19px;font-weight:600;margin-bottom:6px;letter-spacing:-.2px}
+h3{font-size:15px;font-weight:600;margin-bottom:4px}
+p{color:var(--tx2)}
+section{margin-top:52px}
+.sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.sec-num{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--tx3);letter-spacing:1px;padding-top:2px}
+.lead{font-size:15px;color:var(--tx2);max-width:760px}
+
+/* hero */
+.hero{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:36px 36px 32px}
+.kicker{display:inline-block;font-size:11px;letter-spacing:1.5px;color:var(--blue);background:var(--blue-bg);border:1px solid var(--blue-line);border-radius:20px;padding:3px 12px;margin-bottom:16px;font-weight:500}
+.hero h1 span{color:var(--tx3);font-weight:400;font-size:18px;margin-left:10px}
+.hero .one-liner{margin-top:14px;font-size:16px;color:var(--tx);line-height:1.8;max-width:800px}
+.hero .one-liner b{background:linear-gradient(transparent 62%,#fde68a 62%);font-weight:600}
+.meta{display:flex;flex-wrap:wrap;gap:24px;margin-top:24px;padding-top:20px;border-top:1px dashed var(--line)}
+.meta div{font-size:12px;color:var(--tx3)}
+.meta div b{display:block;font-size:13px;color:var(--tx2);font-weight:500;margin-top:2px}
+
+/* metric grid */
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.metric{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.metric .k{font-size:12px;color:var(--tx3);margin-bottom:6px}
+.metric .v{font-size:24px;font-weight:600;letter-spacing:-.5px}
+.metric .v small{font-size:12px;font-weight:400;color:var(--tx3);margin-left:3px}
+
+/* card */
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px 24px}
+.card.dash{border-style:dashed}
+.tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:5px;font-weight:500;vertical-align:middle;margin-left:6px}
+.t-p0{background:var(--red-bg);color:var(--red);border:1px solid var(--red-line)}
+.t-p1{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-line)}
+.t-p2{background:var(--gray-bg);color:var(--tx2);border:1px solid var(--line-strong)}
+.t-ok{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-line)}
+
+/* mode cards */
+.mode{position:relative;padding:24px}
+.mode .badge{position:absolute;top:-11px;right:20px;font-size:11px;padding:2px 10px;border-radius:20px;font-weight:500;background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-line)}
+.mode.warn .badge{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-line)}
+.mode h3{font-size:16px}
+.mode .sub{font-size:12px;color:var(--tx3);letter-spacing:.5px;margin-bottom:10px;font-family:ui-monospace,Consolas,monospace}
+.mode ul{list-style:none;margin-top:10px}
+.mode li{font-size:13px;color:var(--tx2);padding-left:16px;position:relative;margin-top:5px}
+.mode li::before{content:"";position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--tx3)}
+
+/* architecture */
+.arch{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 8px 8px 0;overflow:hidden}
+.layer{display:grid;grid-template-columns:130px 1fr;gap:0;border-bottom:1px solid var(--line)}
+.layer:last-child{border-bottom:none}
+.layer .lbl{padding:20px 12px 20px 22px;font-size:12px;font-weight:500;color:var(--tx2);border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:center}
+.layer .lbl em{font-style:normal;display:block;font-size:10px;color:var(--tx3);letter-spacing:.8px;font-family:ui-monospace,Consolas,monospace;margin-top:2px}
+.layer .mods{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:14px}
+.mod{background:#fbfcfd;border:1px solid var(--line);border-radius:8px;padding:11px 12px;font-size:12.5px;color:var(--tx);line-height:1.5}
+.mod span{display:block;font-size:11px;color:var(--tx3);margin-top:2px}
+.layer:nth-child(1) .mod{background:var(--blue-bg);border-color:var(--blue-line)}
+.layer:nth-child(2) .mod{background:var(--purple-bg);border-color:var(--purple-line)}
+.layer:nth-child(3) .mod{background:var(--teal-bg);border-color:var(--teal-line)}
+.layer:nth-child(4) .mod{background:var(--amber-bg);border-color:var(--amber-line)}
+.cross{margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.cross div{background:var(--card);border:1px dashed var(--line-strong);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--tx2)}
+.cross b{color:var(--tx);font-weight:500}
+
+/* waterfall */
+.wf{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px 28px}
+.wf-row{margin-bottom:14px}
+.wf-top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px}
+.wf-top .n{color:var(--tx)}
+.wf-top .num{font-family:ui-monospace,Consolas,monospace;color:var(--tx2);font-size:12px}
+.wf-bar{height:22px;background:#f2f4f7;border-radius:4px;overflow:hidden;position:relative}
+.wf-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:10.5px;color:#fff;letter-spacing:.3px}
+.wf-total{margin-top:20px;padding-top:16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline}
+.wf-total .big{font-size:26px;font-weight:600;letter-spacing:-.5px}
+
+/* flow chain */
+.chain{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+.step{flex:1;min-width:104px;padding:0 10px;position:relative;text-align:center}
+.step:not(:last-child)::after{content:"";position:absolute;right:-4px;top:50%;width:8px;height:8px;border-top:1px solid var(--tx3);border-right:1px solid var(--tx3);transform:translateY(-50%) rotate(45deg)}
+.step .dot{width:26px;height:26px;border-radius:50%;background:var(--blue-bg);border:1px solid var(--blue-line);color:var(--blue);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;margin:0 auto 8px}
+.step .sn{font-size:12.5px;font-weight:500;color:var(--tx)}
+.step .sd{font-size:11px;color:var(--tx3);margin-top:2px}
+
+/* table */
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+th{text-align:left;font-weight:500;font-size:11.5px;letter-spacing:.5px;color:var(--tx3);padding:11px 16px;background:#fbfcfd;border-bottom:1px solid var(--line)}
+td{padding:12px 16px;border-bottom:1px solid var(--line);color:var(--tx2);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td:first-child{color:var(--tx);font-weight:500}
+td code{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;background:#f2f4f7;padding:1px 5px;border-radius:4px;color:var(--tx)}
+.up{color:var(--red);font-weight:500}
+.mid{color:var(--amber);font-weight:500}
+
+/* roadmap */
+.rm{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px 30px}
+.rm-track{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:22px}
+.rm-track::before{content:"";position:absolute;left:0;right:0;top:9px;height:1px;background:var(--line-strong)}
+.rm-item{position:relative;padding-top:26px}
+.rm-item .dot{position:absolute;top:4px;left:0;width:11px;height:11px;border-radius:50%;background:#fff;border:2px solid var(--tx3)}
+.rm-item.done .dot{background:var(--teal);border-color:var(--teal)}
+.rm-item.now .dot{background:var(--blue);border-color:var(--blue);box-shadow:0 0 0 4px var(--blue-bg)}
+.rm-item .cn{font-family:ui-monospace,Consolas,monospace;font-size:11px;color:var(--tx3);letter-spacing:.5px}
+.rm-item h4{font-size:13px;font-weight:600;margin:3px 0 6px;color:var(--tx)}
+.rm-item p{font-size:11.5px;line-height:1.6}
+.rm-item .eff{font-size:10.5px;color:var(--tx3);margin-top:6px;font-family:ui-monospace,Consolas,monospace}
+
+/* redline */
+.redline{background:var(--red-bg);border:1px solid var(--red-line);border-radius:14px;padding:26px 28px}
+.redline h2{color:var(--red)}
+.redline ol{margin:14px 0 0 0;padding-left:0;list-style:none;counter-reset:r}
+.redline li{counter-increment:r;position:relative;padding-left:34px;margin-top:10px;font-size:13.5px;color:#7a2222}
+.redline li::before{content:counter(r);position:absolute;left:0;top:1px;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:500}
+
+/* callout */
+.callout{border-left:2px solid var(--blue);background:var(--card);padding:16px 20px;border-radius:0 8px 8px 0;margin-top:16px;font-size:13px;color:var(--tx2)}
+.callout b{color:var(--tx)}
+.callout.warn{border-color:var(--amber)}
+.callout.danger{border-color:var(--red)}
+
+/* decision list */
+.dec{display:grid;gap:10px}
+.dec-row{display:grid;grid-template-columns:26px 1fr;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 18px}
+.dec-row .i{width:22px;height:22px;border-radius:50%;background:var(--blue-bg);color:var(--blue);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.dec-row b{font-weight:600}
+.dec-row em{font-style:normal;color:var(--tx3);font-size:12.5px}
+
+.foot{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);font-size:11.5px;color:var(--tx3);display:flex;justify-content:space-between}
+@media (max-width:860px){
+  .wrap{padding:32px 18px 60px}
+  .g4,.g3,.g2{grid-template-columns:repeat(2,1fr)}
+  .layer{grid-template-columns:1fr}
+  .layer .lbl{border-right:none;border-bottom:1px solid var(--line);padding:12px 16px}
+  .layer .mods{grid-template-columns:repeat(2,1fr)}
+  .rm-track{grid-template-columns:1fr 1fr}
+  .rm-track::before{display:none}
+  .step{min-width:50%;margin-bottom:16px}
+  .step::after{display:none}
+}
+@media print{
+  body{background:#fff}
+  .wrap{max-width:none;padding:0}
+  section{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hero">
+  <div class="kicker">软件需求与架构规划 · v0.1 草案</div>
+  <h1>面试副驾<span>Interview Copilot</span></h1>
+  <p class="one-liner">在你戴着耳机开视频会议时，把<b>「听到的话」</b>实时变成<b>「你该说的话」</b>——本地优先、双端协同、简历驱动。</p>
+  <div class="meta">
+    <div>目标平台<b>Windows 10/11 · Android 8.0+</b></div>
+    <div>架构预留<b>macOS · iOS</b></div>
+    <div>核心栈<b>Tauri 2 + Rust + React</b></div>
+    <div>形态<b>桌面小窗 + 手机第二屏</b></div>
+    <div>状态<b>待 6 项决策确认</b></div>
+  </div>
+</div>
+
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>关键指标</h2></div>
+  <div class="grid g4">
+    <div class="metric"><div class="k">核心模块</div><div class="v">8<small>个</small></div></div>
+    <div class="metric"><div class="k">端到端延迟 P95</div><div class="v">2.5<small>s</small></div></div>
+    <div class="metric"><div class="k">桌面安装包</div><div class="v">≤30<small>MB</small></div></div>
+    <div class="metric"><div class="k">MVP 量级</div><div class="v">120<small>人日</small></div></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>三种形态，一条红线</h2></div>
+  <p class="lead">同一套采集与模型能力，做成什么产品，法律性质完全不同。所以第一件事不是写代码，是选形态。</p>
+  <div class="grid g3" style="margin-top:20px">
+    <div class="card mode">
+      <div class="badge">主推 · 零风险</div>
+      <div class="sub">COACH</div>
+      <h3>模拟训练</h3>
+      <p style="font-size:12.5px">与 AI 面试官对练，练完立刻复盘。无第三方参与者。</p>
+      <ul>
+        <li>无第三方音频</li>
+        <li>可全本地离线</li>
+        <li>商店审核无阻碍</li>
+      </ul>
+    </div>
+    <div class="card mode warn">
+      <div class="badge">有条件合法</div>
+      <div class="sub">ASSISTANT</div>
+      <h3>实战辅助</h3>
+      <p style="font-size:12.5px">真实面试中实时看提示卡、记笔记。你是对话一方。</p>
+      <ul>
+        <li>需知情同意设计</li>
+        <li>需可见采集指示</li>
+        <li>需本地处理优先</li>
+      </ul>
+    </div>
+    <div class="card mode">
+      <div class="badge">商业化最优</div>
+      <div class="sub">RECORDER</div>
+      <h3>B 端记录</h3>
+      <p style="font-size:12.5px">HR / 猎头面试记录与自动纪要，双方知情同意。</p>
+      <ul>
+        <li>可签 DPA</li>
+        <li>可开票可订阅</li>
+        <li>风险最低、单价最高</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>系统架构</h2></div>
+  <p class="lead">四层纵向管道 + 两条横切关注点。数据只向下流（UI 只读），采集只向上抛，避免 UI 线程阻塞音频链路。</p>
+
+  <div class="arch" style="margin-top:20px">
+    <div class="layer">
+      <div class="lbl">应用层<em>APPLICATION</em></div>
+      <div class="mods">
+        <div class="mod">桌面 UI<span>React · 悬浮窗</span></div>
+        <div class="mod">手机 UI<span>React · 第二屏</span></div>
+        <div class="mod">复盘报告<span>Markdown / PDF</span></div>
+        <div class="mod">隐私中心<span>同意 · 留存 · 清除</span></div>
+      </div>
+    </div>
+    <div class="layer">
+      <div class="lbl">智能层<em>INTELLIGENCE</em></div>
+      <div class="mods">
+        <div class="mod">LLM 网关<span>自定义模型 · 多适配器</span></div>
+        <div class="mod">提示引擎<span>问题识别 · 提示卡</span></div>
+        <div class="mod">魔方简历<span>ResumeProvider</span></div>
+        <div class="mod">知识库<span>向量检索 · 项目案例</span></div>
+      </div>
+    </div>
+    <div class="layer">
+      <div class="lbl">处理层<em>PIPELINE</em></div>
+      <div class="mods">
+        <div class="mod">VAD 断句<span>Silero · 300ms 静音</span></div>
+        <div class="mod">流式 ASR<span>本地优先 · 热词表</span></div>
+        <div class="mod">说话人分离<span>双轨直分 · 非声纹</span></div>
+        <div class="mod">上下文管理<span>压缩 · 滑动窗口</span></div>
+      </div>
+    </div>
+    <div class="layer">
+      <div class="lbl">采集层<em>CAPTURE</em></div>
+      <div class="mods">
+        <div class="mod">系统声音<span>WASAPI Loopback</span></div>
+        <div class="mod">麦克风<span>通信设备 · 独立轨道</span></div>
+        <div class="mod">屏幕采集<span>WGC · 防截屏兼容</span></div>
+        <div class="mod">投屏传输<span>webrtc-rs · 局域网</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="cross">
+    <div><b>横切 · 本地存储</b>　SQLite + SQLCipher 加密，默认不落原始音频</div>
+    <div><b>横切 · 密钥与权限</b>　Windows DPAPI / Android Keystore，密钥不出进程</div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>实时链路与延迟预算</h2></div>
+  <p class="lead">这类产品只有一条性能指标真正重要：对方说完最后一个字，到你眼睛看见第一行提示，中间隔了多久。整条链路必须为「首 token」让步。</p>
+
+  <div class="chain" style="margin-top:18px">
+    <div class="step"><div class="dot">1</div><div class="sn">双流采集</div><div class="sd">16kHz 分轨</div></div>
+    <div class="step"><div class="dot">2</div><div class="sn">VAD 断句</div><div class="sd">静音 300ms</div></div>
+    <div class="step"><div class="dot">3</div><div class="sn">流式转写</div><div class="sd">逐字上屏</div></div>
+    <div class="step"><div class="dot">4</div><div class="sn">意图判定</div><div class="sd">是提问吗</div></div>
+    <div class="step"><div class="dot">5</div><div class="sn">组 prompt</div><div class="sd">简历+上下文</div></div>
+    <div class="step"><div class="dot">6</div><div class="sn">LLM 首 token</div><div class="sd">快模型</div></div>
+    <div class="step"><div class="dot">7</div><div class="sn">推送上屏</div><div class="sd">桌面/手机</div></div>
+  </div>
+
+  <div class="wf" style="margin-top:20px">
+    <div class="wf-row">
+      <div class="wf-top"><span class="n">VAD 断句判定</span><span class="num">150 ms</span></div>
+      <div class="wf-bar"><div class="wf-fill" style="width:6%;background:#94a3b8">150ms</div></div>
+    </div>
+    <div class="wf-row">
+      <div class="wf-top"><span class="n">流式 ASR 首个稳定结果</span><span class="num">400 ms</span></div>
+      <div class="wf-bar"><div class="wf-fill" style="width:16%;background:#378add">400ms</div></div>
+    </div>
+    <div class="wf-row">
+      <div class="wf-top"><span class="n">语义压缩 + 意图判定（本地）</span><span class="num">50 ms</span></div>
+      <div class="wf-bar"><div class="wf-fill" style="width:3%;background:#94a3b8"></div></div>
+    </div>
+    <div class="wf-row">
+      <div class="wf-top"><span class="n">LLM 首 token（含网络）</span><span class="num">800 ms</span></div>
+      <div class="wf-bar"><div class="wf-fill" style="width:32%;background:#534ab7">800ms</div></div>
+    </div>
+    <div class="wf-row" style="margin-bottom:0">
+      <div class="wf-top"><span class="n">渲染上屏 + 推送手机</span><span class="num">50 ms</span></div>
+      <div class="wf-bar"><div class="wf-fill" style="width:3%;background:#94a3b8"></div></div>
+    </div>
+    <div class="wf-total">
+      <div><div style="font-size:12px;color:var(--tx3)">目标 P50 合计</div><div class="big">1.45 s</div></div>
+      <div style="text-align:right"><div style="font-size:12px;color:var(--tx3)">P95 上限（含 1s 余量）</div><div class="big" style="color:var(--amber)">≤ 2.5 s</div></div>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:18px">
+    <b>工程原则：宁可给 3 条短句，不要给 1 段长文。</b>提示卡固定结构 = 一句话结论 + 3 条 ≤15 字要点 + 1 个可引用的自身案例。首 token 就是全部体验。
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>模块拆解</h2></div>
+  <div class="grid g2" style="margin-top:18px">
+    <div class="card">
+      <h3>F1 · 音频采集与会议监听<span class="tag t-p0">P0</span></h3>
+      <p style="font-size:12.5px;margin-top:6px">系统声音 Loopback + 麦克风，<b>分轨不混音</b>；进程与音频会话双判定识别会议软件；热插拔 3 秒内自愈。</p>
+      <p style="font-size:12px;color:var(--amber);margin-top:8px">坑：蓝牙耳机切 HFP 后 Loopback 可能取不到声，需引导有线/USB 或虚拟声卡。</p>
+    </div>
+    <div class="card">
+      <h3>F2 · 实时转写<span class="tag t-p0">P0</span></h3>
+      <p style="font-size:12.5px;margin-top:6px">VAD → 流式 ASR → 双轨说话人分离（不靠声纹猜，直接用轨道区分我/对方）。中文 WER &lt;8%，支持专名热词表与中英混说。</p>
+    </div>
+    <div class="card">
+      <h3>F3 · 大模型网关<span class="tag t-p0">P0</span></h3>
+      <p style="font-size:12.5px;margin-top:6px">OpenAI 兼容协议为基线，任意 <code style="font-size:11px;background:#f2f4f7;padding:1px 4px;border-radius:3px">base_url + key + model</code> 可接；另配 Anthropic / Gemini / Ollama / llama.cpp 适配器。<b>快模型出提示、强模型做复盘、本地模型兜底</b>，三者分开配置。</p>
+    </div>
+    <div class="card">
+      <h3>F4 · 提示引擎<span class="tag t-p0">P0</span></h3>
+      <p style="font-size:12.5px;margin-top:6px">只在识别到「提问」时触发，避免刷屏；追问沿上一条深化而非重写；<b>输出后置简历事实校验</b>，命中未出现在简历里的实体就重写（治幻觉）。</p>
+    </div>
+    <div class="card">
+      <h3>F5 · 投屏模块<span class="tag t-p0">P0</span></h3>
+      <p style="font-size:12.5px;margin-top:6px">双向设计：电脑→手机（提示上第二屏，&lt;200ms）/ 手机→电脑（H.264 硬编，1080p@30 &lt;150ms）。局域网 WebRTC，二维码 + 6 位码配对。</p>
+    </div>
+    <div class="card">
+      <h3>F6 · 魔方简历模块<span class="tag t-p0">P0</span></h3>
+      <p style="font-size:12.5px;margin-top:6px">可插拔 <code style="font-size:11px;background:#f2f4f7;padding:1px 4px;border-radius:3px">ResumeProvider</code> 接口，首家实现魔方简历。核心产出不是「改写简历」，而是<b>JD 匹配 + 缺口清单 + 一定会被问的 5 个问题</b>。</p>
+    </div>
+    <div class="card">
+      <h3>F7 · 会话复盘<span class="tag t-p1">P1</span></h3>
+      <p style="font-size:12.5px;margin-top:6px">语速、口头禅、未答好的问题、对方技术词云、逐句回放（默认只留摘要不留原音）、两场面试同类问题的横向对比。</p>
+    </div>
+    <div class="card">
+      <h3>F8 · 隐私中心<span class="tag t-p0">P0</span></h3>
+      <p style="font-size:12.5px;margin-top:6px">每次启动确认采集；留存策略默认「0 天，只留结构化摘要」；一键清除；采集告知模板；地区合规开关；日志零文本内容。</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>技术选型</h2></div>
+  <table style="margin-top:18px">
+    <thead><tr><th style="width:130px">层</th><th style="width:220px">选型</th><th>理由与备选</th></tr></thead>
+    <tbody>
+      <tr><td>跨平台外壳</td><td>Tauri 2（Rust）</td><td>包体 10MB vs Electron 150MB，内存低一个量级；Tauri 2 已支持 Android/iOS，<b>一套 React 前端两端口</b>，避免 Kotlin + Web 双技术栈</td></tr>
+      <tr><td>音频采集</td><td>Rust <code>windows</code> crate 直调 WASAPI</td><td>cpal <b>不直接支持 loopback</b>，必须走 COM；备选 VB-Cable 虚拟声卡（更稳但需装驱动，慎用）</td></tr>
+      <tr><td>屏幕采集</td><td>Windows.Graphics.Capture</td><td>支持窗口级采集；注意部分会议软件会设 <code>WDA_EXCLUDEFROMCAPTURE</code> 导致黑屏——<b>音频路径不受影响，这是走音频不走视频的核心理由</b></td></tr>
+      <tr><td>实时传输</td><td>webrtc-rs</td><td>自带拥塞控制与抗丢包；备选自研 TCP + H.264</td></tr>
+      <tr><td>ASR</td><td>SenseVoice-Small / FunASR</td><td>中文与技术专名表现最好、体积可控；备选 whisper.cpp</td></tr>
+      <tr><td>LLM</td><td>OpenAI 兼容 + 多 adapter</td><td>通用性最强，用户可自定义任意模型</td></tr>
+      <tr><td>本地兜底模型</td><td>llama.cpp（Qwen3-4B 级量化）</td><td>可嵌入、无守护进程；断网不断档</td></tr>
+      <tr><td>存储</td><td>SQLite + sqlx + SQLCipher</td><td>单文件、可加密、双端一致</td></tr>
+      <tr><td>导出</td><td>typst（PDF）+ docx-rs</td><td>版式精确，能保证单页 A4 与页边距控制</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">07</span><h2>合规分析：技术中立，用途定性质</h2></div>
+  <p class="lead">你问的「这违不违反法律」——答案是：<b>录音本身在多数情况下不违法，但产品化方式决定它是不是违法产品。</b></p>
+
+  <div class="grid g2" style="margin-top:20px">
+    <div class="card">
+      <h3 style="color:var(--teal)">合法的支撑点</h3>
+      <ul style="list-style:none;margin-top:8px">
+        <li style="font-size:12.5px;padding-left:14px;position:relative;margin-top:6px"><span style="position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--teal)"></span>你是对话参与方，录自己参与的对话，司法实践通常认可（《民诉法解释》第 106 条反向推论）</li>
+        <li style="font-size:12.5px;padding-left:14px;position:relative;margin-top:6px"><span style="position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--teal)"></span>默认全本地处理、不上传、不留原始音频 → 满足《个保法》第 6 条最小必要</li>
+        <li style="font-size:12.5px;padding-left:14px;position:relative;margin-top:6px"><span style="position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--teal)"></span>有可见采集指示 + 双方知情 → 有合法性基础（第 13 条）</li>
+        <li style="font-size:12.5px;padding-left:14px;position:relative;margin-top:6px"><span style="position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--teal)"></span>Coach / Recorder 形态几乎无法律风险，且是更好的生意</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 style="color:var(--red)">风险的真实来源</h3>
+      <ul style="list-style:none;margin-top:8px">
+        <li style="font-size:12.5px;padding-left:14px;position:relative;margin-top:6px"><span style="position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--red)"></span><b>欺诈</b>：《劳动合同法》第 8/26/39 条 —— AI 代答可致 offer 撤销、合同无效、在职被解除（对你当下求职最现实的风险）</li>
+        <li style="font-size:12.5px;padding-left:14px;position:relative;margin-top:6px"><span style="position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--red)"></span><b>隐私</b>：《民法典》第 1032/1033 条 + 第 1023 条（声音参照肖像权保护）</li>
+        <li style="font-size:12.5px;padding-left:14px;position:relative;margin-top:6px"><span style="position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--red)"></span><b>个人信息</b>：《个保法》第 28–29 条 —— 一旦做声纹识别即落入敏感个人信息，需单独同意</li>
+        <li style="font-size:12.5px;padding-left:14px;position:relative;margin-top:6px"><span style="position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--red)"></span><b>传播</b>：《治安管理处罚法》（2026-01-01 施行）散布他人隐私；面试题可能构成《反不正当竞争法》下的商业秘密</li>
+        <li style="font-size:12.5px;padding-left:14px;position:relative;margin-top:6px"><span style="position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--red)"></span><b>平台</b>：应用商店对「欺骗性用途」零容忍，灰色工具生命周期以周计</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="redline" style="margin-top:24px">
+    <h2>四条绝对红线（写进代码，不是写在文档里）</h2>
+    <ol>
+      <li>不做隐蔽采集 —— 进程名、图标、托盘指示不可伪装；采集时必有可见指示且不可关闭。</li>
+      <li>不做规避检测 —— 不 hook 会议软件、不改窗口属性、不伪造音频设备。</li>
+      <li>不做语音代答 —— 不把答案 TTS 念给用户。这一步把「辅助思考」变成「代替应答」，性质彻底改变。</li>
+      <li>不做内容外传 —— 不提供面试题一键分享/社区题库之类功能。</li>
+    </ol>
+  </div>
+
+  <div class="callout warn" style="margin-top:18px">
+    <b>我的独立判断：</b>MVP 就以 Coach（模拟训练 + 复盘）为主形态上线，Assistant 作为「知情同意 + 本地处理 + 不代答」的高级能力并只对确认过合规声明的用户开放。<b>先把发动机造好，方向盘往合规那边打。</b>理由不是保守：作弊工具的商业寿命由平台封禁速度决定，而你正在求职，欺诈风险对你是不可承受的。
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">08</span><h2>路线图</h2></div>
+  <p class="lead">严格串行：M1 的音频链路不通，绝不进 M2。真正的风险不在工程量，在设备兼容性与延迟调优——这两块各留 50% buffer。</p>
+
+  <div class="rm" style="margin-top:18px">
+    <div class="rm-track">
+      <div class="rm-item now">
+        <div class="dot"></div>
+        <div class="cn">M0</div>
+        <h4>骨架与合规底座</h4>
+        <p>Tauri 2 双端跑通、配对、隐私中心、采集指示灯、使用声明与同意流</p>
+        <div class="eff">~15 人日</div>
+      </div>
+      <div class="rm-item">
+        <div class="dot"></div>
+        <div class="cn">M1</div>
+        <h4>听觉打通</h4>
+        <p>WASAPI 双流 + VAD + 流式 ASR + 三款会议软件兼容实测</p>
+        <div class="eff">~30 人日</div>
+      </div>
+      <div class="rm-item">
+        <div class="dot"></div>
+        <div class="cn">M2</div>
+        <h4>大脑接通</h4>
+        <p>LLM 网关（自定义模型）+ 提示引擎 + 快捷键 + 一键隐身上屏</p>
+        <div class="eff">~25 人日</div>
+      </div>
+      <div class="rm-item">
+        <div class="dot"></div>
+        <div class="cn">M3</div>
+        <h4>简历与双屏</h4>
+        <p>魔方简历适配器 + JD 匹配与缺口清单 + 手机第二屏投屏</p>
+        <div class="eff">~35 人日</div>
+      </div>
+      <div class="rm-item">
+        <div class="dot"></div>
+        <div class="cn">M4</div>
+        <h4>打磨与分发</h4>
+        <p>复盘报告、安装包与签名、自动更新、脱敏崩溃上报、10 人内测</p>
+        <div class="eff">~15 人日</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">09</span><h2>风险登记册</h2></div>
+  <table style="margin-top:18px">
+    <thead><tr><th style="width:52px">ID</th><th style="width:280px">风险</th><th style="width:64px">等级</th><th>缓解</th></tr></thead>
+    <tbody>
+      <tr><td>R1</td><td>蓝牙耳机切 HFP 后 Loopback 抓不到声</td><td class="up">高</td><td>优先有线/USB；检测到 HFP 时 UI 明确降级提示；虚拟声卡引导</td></tr>
+      <tr><td>R2</td><td>会议软件防截屏导致投屏黑屏</td><td class="up">高</td><td>主链路走音频；投屏只传自家 UI 不传会议窗口</td></tr>
+      <tr><td>R3</td><td>端到端延迟超标</td><td class="mid">中</td><td>全链路流式 + 短输出 + 快模型 + 连接预热</td></tr>
+      <tr><td>R4</td><td>模型编造用户经历</td><td class="mid">中</td><td>输出后置「简历事实校验」，命中未出现实体即重写</td></tr>
+      <tr><td>R5</td><td>安卓后台被杀 / 投屏授权失效</td><td class="mid">中</td><td>前台服务 + 常驻通知 + 厂商白名单引导 + 断连自愈</td></tr>
+      <tr><td>R6</td><td>平台下架 / 法律风险</td><td class="up">高</td><td>四红线落地 + 合规定位 + 地区开关</td></tr>
+      <tr><td>R7</td><td>LLM 成本失控</td><td class="mid">中</td><td>单会话预算上限 + 自动降级本地模型 + 成本看板</td></tr>
+      <tr><td>R8</td><td>单人开发进度失控</td><td class="up">高</td><td>严格 M0–M4 串行，未达出口标准不进入下一阶段</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">10</span><h2>需要你定的 6 件事</h2></div>
+  <p class="lead">这 6 项决定架构走向，定了我就能出数据库 schema、API 契约和 M0 的代码骨架。</p>
+  <div class="dec" style="margin-top:18px">
+    <div class="dec-row"><div class="i">1</div><div><b>投屏方向</b>　<em>手机→电脑，还是电脑→手机？</em><br><span style="font-size:12.5px;color:var(--tx2)">我倾向先做「电脑→手机」（提示推到第二屏），这才是真需求；反向多为演示/双机位场景。</span></div></div>
+    <div class="dec-row"><div class="i">2</div><div><b>魔方简历的形态</b>　<em>第三方在线产品，还是你那套自研单页模板？</em><br><span style="font-size:12.5px;color:var(--tx2)">前者要设计导入/API 对接，后者可直接内嵌为数据源并复用你的字体缩放与页边距脚本。</span></div></div>
+    <div class="dec-row"><div class="i">3</div><div><b>主形态</b>　<em>Coach 为主，还是 Assistant 为主？</em><br><span style="font-size:12.5px;color:var(--tx2)">直接决定合规定位、商店审核口径、以及我做多少「隐身」相关功能。</span></div></div>
+    <div class="dec-row"><div class="i">4</div><div><b>是否要求全离线</b>　<em>断网必须能用吗？</em><br><span style="font-size:12.5px;color:var(--tx2)">若必须，本地模型 2–4GB，安装包策略改为「按需下载」，首次启动体验要重新设计。</span></div></div>
+    <div class="dec-row"><div class="i">5</div><div><b>是否面向境外</b>　<em>会卖给非中国大陆用户吗？</em><br><span style="font-size:12.5px;color:var(--tx2)">涉及 GDPR、美国 all-party consent 州（如加州），需要地理围栏与差异化策略。</span></div></div>
+    <div class="dec-row"><div class="i">6</div><div><b>商业化路径</b>　<em>个人订阅，还是 B 端 HR 记录？</em><br><span style="font-size:12.5px;color:var(--tx2)">C 端量大但合规敏感；B 端量小但干净、可开票、可签 DPA，而且就是你现在最熟的企业 IT 采购场景。</span></div></div>
+  </div>
+</section>
+
+<div class="foot">
+  <span>面试副驾 · 需求与架构规划书 v0.1</span>
+  <span>配套文档：docs/01-需求规格说明书.md</span>
+</div>
+
+</div>
+</body>
+</html>

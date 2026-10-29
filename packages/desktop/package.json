@@ -1,0 +1,49 @@
+{
+  "name": "@job-bingo/desktop",
+  "version": "0.1.3",
+  "private": true,
+  "main": "src/main/index.js",
+  "description": "实时思路提示：根据对方问题与你的简历，给出关键词与大纲（不代答）",
+  "author": "面必过 contributors",
+  "scripts": {
+    "dev": "electron src/main/index.js"
+  },
+  "dependencies": {
+    "@job-bingo/core": "*",
+    "@job-bingo/asr": "*",
+    "ws": "^8.18.0"
+  },
+  "build": {
+    "appId": "com.elvisloo.jobbingo",
+    "productName": "面必过",
+    "electronVersion": "33.4.11",
+    "copyright": "Copyright © 2026 面必过 contributors",
+    "directories": {
+      "output": "../../dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json",
+      "!**/*.log"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/tray-256.png",
+      "artifactName": "面必过-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "面必过"
+    },
+    "portable": {
+      "artifactName": "面必过-${version}-${arch}-便携版.${ext}"
+    },
+    "asar": true
+  }
+}

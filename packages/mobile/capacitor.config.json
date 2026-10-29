@@ -1,0 +1,11 @@
+{
+  "appId": "com.elvisloo.jobbingo",
+  "appName": "面必过",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

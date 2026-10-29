@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>面必过</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header class="top">
+  <div class="brand">面必过</div>
+  <div class="conn" id="conn">未连接</div>
+</header>
+
+<main class="stage">
+  <div class="hint" id="hint">按住下方按钮开始采集<br /><span class="small">手机采集 → 电脑浮窗显示思路卡</span></div>
+
+  <div class="wave" id="wave" hidden>
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
+
+  <section class="card" id="card" hidden>
+    <div class="anchor" id="anchor"></div>
+    <ul class="points" id="points"></ul>
+    <div class="caution" id="caution" hidden></div>
+  </section>
+
+  <div class="status" id="status"></div>
+</main>
+
+<footer class="bottom">
+  <div class="who">
+    <button id="whoMe" class="seg on" type="button">我在回答</button>
+    <button id="whoThem" class="seg" type="button">对方在问</button>
+  </div>
+  <button id="mic" class="mic">按住说话</button>
+  <div class="row">
+    <input id="host" placeholder="电脑地址 192.168.x.x" />
+    <button id="connect" class="ghost">连接</button>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

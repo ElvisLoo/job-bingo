@@ -1,0 +1,35 @@
+'use strict';
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('copilot', {
+  onCard: (cb) => { ipcRenderer.on('card', (_e, payload) => cb(payload)); },
+  onMode: (cb) => { ipcRenderer.on('mode', (_e, payload) => cb(payload)); },
+  onConfig: (cb) => { ipcRenderer.on('config', (_e, payload) => cb(payload)); },
+  ask: (q) => ipcRenderer.invoke('hint:ask', q),
+  mock: (q) => ipcRenderer.invoke('hint:mock', q),
+  warmup: () => ipcRenderer.invoke('llm:warmup'),
+  getConfig: () => ipcRenderer.invoke('config:get'),
+  setConfig: (patch) => ipcRenderer.invoke('config:set', patch),
+  loadResume: () => ipcRenderer.invoke('resume:load'),
+  setThrough: (on) => ipcRenderer.invoke('overlay:through', on),
+  hide: () => ipcRenderer.invoke('overlay:hide'),
+  setTaskbar: (on) => ipcRenderer.invoke('overlay:taskbar', on),
+  setSolid: (on) => ipcRenderer.invoke('overlay:solid', on),
+  busyCancel: () => ipcRenderer.invoke('busy:cancel'),
+  captureStart: () => ipcRenderer.invoke('capture:start'),
+  captureStop: () => ipcRenderer.invoke('capture:stop'),
+  captureStatus: () => ipcRenderer.invoke('capture:status'),
+  pipelineStatus: () => ipcRenderer.invoke('pipeline:status'),
+  pipelineReset: () => ipcRenderer.invoke('pipeline:reset'),
+  pipelineStart: (src) => ipcRenderer.invoke('pipeline:start', src),
+  pipelineStop: () => ipcRenderer.invoke('pipeline:stop'),
+  asrFeedWav: () => ipcRenderer.invoke('asr:feedWav'),
+  asrDemoWav: () => ipcRenderer.invoke('asr:demoWav'),
+  asrStatus: () => ipcRenderer.invoke('asr:status'),
+  // ---- 复盘 ----
+  reviewGenerate: () => ipcRenderer.invoke('review:generate'),
+  reviewOpenFolder: () => ipcRenderer.invoke('review:openFolder'),
+  reviewClear: () => ipcRenderer.invoke('review:clear'),
+  reviewCount: () => ipcRenderer.invoke('review:count'),
+  onReviewRequest: (cb) => { ipcRenderer.on('review:request', () => cb()); },
+});

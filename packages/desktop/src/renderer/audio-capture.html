@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>系统声音采集</title>
+<style>
+  body { font: 13px/1.7 "Microsoft YaHei", system-ui, sans-serif; color: #cbd5e1; background: #0f1420; padding: 16px; }
+  .row { margin-bottom: 6px; }
+  .ok { color: #34d399; }
+  .err { color: #f87171; }
+  .dim { color: #64748b; }
+  code { background: #1b2233; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <div class="row">状态：<span id="state" class="dim">初始化…</span></div>
+  <div class="row">系统音频：<span id="tracks" class="dim">—</span></div>
+  <div class="row">麦克风：<span id="mic" class="dim">检测中…</span></div>
+  <div class="row">实时电平：<span id="level" class="dim">—</span></div>
+  <div class="row">当前判定：<span id="who" class="dim">等待语音…</span></div>
+  <div class="row">电平旁路：<span id="probe" class="dim">—</span></div>
+  <div class="row">采样率：<span id="rate" class="dim">—</span></div>
+  <div class="row">回环帧：<span id="frames" class="dim">0</span> · 麦克风帧：<span id="micFrames" class="dim">0</span></div>
+  <div class="row dim">本窗口只采集会议音频，<b>不采集画面</b>：视频轨在拿到流后立即停止。</div>
+  <script src="audio-capture.js"></script>
+</body>
+</html>

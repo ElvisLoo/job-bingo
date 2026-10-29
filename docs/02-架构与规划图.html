@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面试副驾 — 需求与架构规划书 v0.3</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --line:#e4e7ec; --line-strong:#d0d5dd;
+  --tx:#101828; --tx2:#475467; --tx3:#98a2b3;
+  --blue:#185fa5; --blue-bg:#e6f1fb; --blue-line:#b5d4f4;
+  --teal:#0f6e56; --teal-bg:#e1f5ee; --teal-line:#9fe1cb;
+  --amber:#854f0b; --amber-bg:#faeeda; --amber-line:#fac775;
+  --red:#a32d2d; --red-bg:#fcebeb; --red-line:#f7c1c1;
+  --purple:#534ab7; --purple-bg:#eeedfe; --purple-line:#cecbf6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:"Microsoft YaHei","PingFang SC","Hiragino Sans GB",system-ui,sans-serif;font-size:14px;line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:56px 32px 100px}
+h1{font-size:30px;font-weight:600;letter-spacing:-.5px;line-height:1.35}
+h2{font-size:19px;font-weight:600;margin-bottom:6px;letter-spacing:-.2px}
+h3{font-size:15px;font-weight:600;margin-bottom:4px}
+p{color:var(--tx2)}
+section{margin-top:52px}
+.sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.sec-num{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--tx3);letter-spacing:1px;padding-top:2px}
+.lead{font-size:15px;color:var(--tx2);max-width:780px}
+.hero{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:36px 36px 30px}
+.kicker{display:inline-block;font-size:11px;letter-spacing:1.5px;color:var(--blue);background:var(--blue-bg);border:1px solid var(--blue-line);border-radius:20px;padding:3px 12px;margin-bottom:16px;font-weight:500}
+.hero .one-liner{margin-top:14px;font-size:17px;color:var(--tx);line-height:1.8;max-width:820px}
+.hero .one-liner b{background:linear-gradient(transparent 62%,#fde68a 62%);font-weight:600}
+.meta{display:flex;flex-wrap:wrap;gap:26px;margin-top:24px;padding-top:20px;border-top:1px dashed var(--line)}
+.meta div{font-size:12px;color:var(--tx3)}
+.meta div b{display:block;font-size:13px;color:var(--tx2);font-weight:500;margin-top:2px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.metric{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.metric .k{font-size:12px;color:var(--tx3);margin-bottom:6px}
+.metric .v{font-size:24px;font-weight:600;letter-spacing:-.5px}
+.metric .v small{font-size:12px;font-weight:400;color:var(--tx3);margin-left:3px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px 24px}
+.card.hl{border:2px solid var(--blue-line)}
+.tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:5px;font-weight:500;vertical-align:middle;margin-left:6px}
+.t-p0{background:var(--red-bg);color:var(--red);border:1px solid var(--red-line)}
+.t-p1{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-line)}
+.t-new{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-line)}
+.mode{position:relative;padding:24px}
+.mode .badge{position:absolute;top:-11px;right:20px;font-size:11px;padding:2px 10px;border-radius:20px;font-weight:500;background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-line)}
+.mode.warn .badge{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-line)}
+.mode h3{font-size:16px}
+.mode .sub{font-size:11px;color:var(--tx3);letter-spacing:1px;margin-bottom:8px;font-family:ui-monospace,Consolas,monospace}
+.mode ul{list-style:none;margin-top:10px}
+.mode li{font-size:12.5px;color:var(--tx2);padding-left:14px;position:relative;margin-top:5px}
+.mode li::before{content:"";position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--tx3)}
+.arch{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 8px 8px 0;overflow:hidden}
+.layer{display:grid;grid-template-columns:132px 1fr;gap:0;border-bottom:1px solid var(--line)}
+.layer:last-child{border-bottom:none}
+.layer .lbl{padding:20px 12px 20px 22px;font-size:12px;font-weight:500;color:var(--tx2);border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:center}
+.layer .lbl em{font-style:normal;display:block;font-size:11px;color:var(--tx3);letter-spacing:.5px;font-family:ui-monospace,Consolas,monospace;margin-top:2px}
+.layer .mods{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:14px}
+.mod{background:#fbfcfd;border:1px solid var(--line);border-radius:8px;padding:11px 12px;font-size:12.5px;color:var(--tx);line-height:1.5}
+.mod span{display:block;font-size:11px;color:var(--tx3);margin-top:2px}
+.layer:nth-child(1) .mod{background:var(--teal-bg);border-color:var(--teal-line)}
+.layer:nth-child(2) .mod{background:var(--purple-bg);border-color:var(--purple-line)}
+.layer:nth-child(3) .mod{background:var(--blue-bg);border-color:var(--blue-line)}
+.cross{margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.cross div{background:var(--card);border:1px dashed var(--line-strong);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--tx2)}
+.cross b{color:var(--tx);font-weight:500}
+.arb{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 26px}
+.arb-flow{display:flex;align-items:stretch;gap:10px;margin-top:18px;flex-wrap:wrap}
+.arb-step{flex:1;min-width:130px;background:#fbfcfd;border:1px solid var(--line);border-radius:9px;padding:12px 14px}
+.arb-step .sn{font-size:12.5px;font-weight:600;color:var(--tx);margin-bottom:3px}
+.arb-step .sd{font-size:11.5px;color:var(--tx2);line-height:1.55}
+.arb-step.imp{background:var(--purple-bg);border-color:var(--purple-line)}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+th{text-align:left;font-weight:500;font-size:11.5px;letter-spacing:.5px;color:var(--tx3);padding:11px 16px;background:#fbfcfd;border-bottom:1px solid var(--line)}
+td{padding:12px 16px;border-bottom:1px solid var(--line);color:var(--tx2);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td:first-child{color:var(--tx);font-weight:500}
+td code{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;background:#f2f4f7;padding:1px 5px;border-radius:4px;color:var(--tx)}
+tr.total td{background:var(--amber-bg);color:var(--amber);font-weight:600;border-top:1px solid var(--amber-line)}
+.up{color:var(--red);font-weight:500}
+.mid{color:var(--amber);font-weight:500}
+.low{color:var(--tx3);font-weight:500}
+.rm{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px 30px}
+.rm-track{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:22px}
+.rm-track::before{content:"";position:absolute;left:0;right:0;top:9px;height:1px;background:var(--line-strong)}
+.rm-item{position:relative;padding-top:26px}
+.rm-item .dot{position:absolute;top:4px;left:0;width:11px;height:11px;border-radius:50%;background:#fff;border:2px solid var(--tx3)}
+.rm-item.now .dot{background:var(--blue);border-color:var(--blue);box-shadow:0 0 0 4px var(--blue-bg)}
+.rm-item .cn{font-family:ui-monospace,Consolas,monospace;font-size:11px;color:var(--tx3);letter-spacing:.5px}
+.rm-item h4{font-size:13px;font-weight:600;margin:3px 0 6px;color:var(--tx)}
+.rm-item p{font-size:11.5px;line-height:1.6}
+.rm-item .eff{font-size:11px;color:var(--tx3);margin-top:6px;font-family:ui-monospace,Consolas,monospace}
+.redline{background:var(--red-bg);border:1px solid var(--red-line);border-radius:14px;padding:26px 28px}
+.redline h2{color:var(--red)}
+.redline ol{margin:14px 0 0 0;padding-left:0;list-style:none;counter-reset:r}
+.redline li{counter-increment:r;position:relative;padding-left:34px;margin-top:10px;font-size:13.5px;color:#7a2222}
+.redline li::before{content:counter(r);position:absolute;left:0;top:1px;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:500}
+.callout{border-left:2px solid var(--blue);background:var(--card);padding:16px 20px;border-radius:0 8px 8px 0;margin-top:16px;font-size:13px;color:var(--tx2)}
+.callout b{color:var(--tx)}
+.callout.warn{border-color:var(--amber)}
+.callout.teal{border-color:var(--teal)}
+.dec{display:grid;gap:10px}
+.dec-row{display:grid;grid-template-columns:26px 1fr;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:13px 18px}
+.dec-row .i{width:22px;height:22px;border-radius:50%;background:var(--teal-bg);color:var(--teal);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.dec-row b{font-weight:600}
+.dec-row em{font-style:normal;color:var(--tx2);font-size:12.5px}
+.foot{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);font-size:11.5px;color:var(--tx3);display:flex;justify-content:space-between}
+@media (max-width:860px){
+  .wrap{padding:32px 18px 60px}
+  .g4,.g3,.g2{grid-template-columns:repeat(2,1fr)}
+  .layer{grid-template-columns:1fr}
+  .layer .lbl{border-right:none;border-bottom:1px solid var(--line);padding:12px 16px}
+  .layer .mods{grid-template-columns:repeat(2,1fr)}
+  .rm-track{grid-template-columns:1fr 1fr}
+  .rm-track::before{display:none}
+}
+@media print{body{background:#fff}.wrap{max-width:none;padding:0}section{page-break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hero">
+  <div class="kicker">需求与架构规划 · v0.3 · 采集双端化</div>
+  <h1>面试副驾</h1>
+  <p class="one-liner">听面试官说话 → 对着你的简历判断他真正想问什么 → 给你 <b>3 条思路骨架</b> → 半透明浮窗显示 → <b>你自己组织语言说出来</b>。</p>
+  <div class="meta">
+    <div>主采集端<b>Windows · WASAPI 双轨</b></div>
+    <div>移动端<b>Android · 单轨 + 第二屏</b></div>
+    <div>技术栈<b>Electron + Capacitor + TS Core + Rust sidecar</b></div>
+    <div>模型<b>第三方 API · 可自定义</b></div>
+    <div>范围<b>仅中国大陆 · 开源</b></div>
+  </div>
+</div>
+
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>关键指标</h2></div>
+  <div class="grid g4">
+    <div class="metric"><div class="k">功能模块</div><div class="v">10<small>个</small></div></div>
+    <div class="metric"><div class="k">电脑路径延迟 P95</div><div class="v">2.0<small>s</small></div></div>
+    <div class="metric"><div class="k">电脑路径识别率</div><div class="v">&lt;6<small>% WER</small></div></div>
+    <div class="metric"><div class="k">MVP 量级</div><div class="v">104<small>人日</small></div></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>三种可用形态，一条共同底线</h2></div>
+  <p class="lead">关键设计目标：<b>没有手机也能完整使用。</b>手机是增强，不是前提。所以采集能力必须两端都具备。</p>
+  <div class="grid g3" style="margin-top:20px">
+    <div class="card mode hl">
+      <div class="badge">主推</div>
+      <div class="sub">DESKTOP ONLY</div>
+      <h3>电脑单机</h3>
+      <p style="font-size:12.5px">回环抓对方 + 麦克风抓自己，双轨并行。</p>
+      <ul><li>数字直采，音质近无损</li><li>说话人天然分离</li><li>不掏手机</li></ul>
+    </div>
+    <div class="card mode">
+      <div class="badge">双屏协同</div>
+      <div class="sub">DESKTOP + PHONE</div>
+      <h3>手机当第二屏</h3>
+      <p style="font-size:12.5px">电脑负责听和想，手机同步显示。</p>
+      <ul><li>电脑主采，手机只渲染</li><li>省电</li><li>低头看手机不显突兀</li></ul>
+    </div>
+    <div class="card mode warn">
+      <div class="badge">移动与热备</div>
+      <div class="sub">PHONE ONLY</div>
+      <h3>手机单机</h3>
+      <p style="font-size:12.5px">外出、电话面、电脑不可用时兜底。</p>
+      <ul><li>隔空拾音，准确率打折</li><li>问句推断说话人</li><li>能推给电脑就推</li></ul>
+    </div>
+  </div>
+
+  <div class="redline" style="margin-top:24px">
+    <h2>三条写进代码的自我约束</h2>
+    <ol>
+      <li>只给骨架，不给成稿 —— 单条要点 ≤18 字，禁止输出可朗读的完整段落。</li>
+      <li>内容只来自你的简历 —— 每条思路必须能追溯到简历里的某个项目；做不到就直说"这块你简历里没有"。</li>
+      <li>不做隐藏 —— 启动即显示"正在聆听"，浮窗有红点，无伪装模式、不改进程名、不规避会议检测。</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>架构：双端对等，电脑优先</h2></div>
+  <p class="lead">v0.2 曾把电脑降级成"纯显示器"，这是过度简化。电脑能直接抓系统声音——这是音质最好、延迟最低、还能天然分轨的路径，它不该只是屏。</p>
+
+  <div class="arch" style="margin-top:20px">
+    <div class="layer">
+      <div class="lbl">采集层<em>CAPTURE</em></div>
+      <div class="mods">
+        <div class="mod">系统声音回环<span>WASAPI · 对方轨</span></div>
+        <div class="mod">电脑麦克风<span>通信设备 · 自己轨</span></div>
+        <div class="mod">手机麦克风<span>16kHz 单轨</span></div>
+        <div class="mod">采集端仲裁<span>电脑优先 · 手机热备</span></div>
+      </div>
+    </div>
+    <div class="layer">
+      <div class="lbl">云端<em>THIRD-PARTY</em></div>
+      <div class="mods">
+        <div class="mod">流式 ASR<span>带轨标签透传</span></div>
+        <div class="mod">LLM 网关<span>自定义模型 · 自带 Key</span></div>
+        <div class="mod">复盘分析<span>强模型 · 另配</span></div>
+        <div class="mod">可换供应商<span>适配器隔离</span></div>
+      </div>
+    </div>
+    <div class="layer">
+      <div class="lbl">应用层<em>APP</em></div>
+      <div class="mods">
+        <div class="mod">电脑半透明浮窗<span>亚克力 · 穿透 · 置顶</span></div>
+        <div class="mod">手机语音助手<span>声波 · 字幕 · 思路卡</span></div>
+        <div class="mod">魔方简历<span>仅电脑端 · 子进程托管</span></div>
+        <div class="mod">会话复盘<span>报告 · 导出</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="cross">
+    <div><b>横切 · packages/core</b>　LLM 网关、思路引擎、简历解析、<b>采集仲裁状态机</b>（纯 TS，三处复用）</div>
+    <div><b>横切 · 局域网</b>　WebSocket + mDNS 自动发现，双向同步思路卡，不经公网</div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>采集仲裁：谁在采，是运行时决定的</h2></div>
+  <p class="lead">两处架构判断连错两次，都错在同一件事：把某一端的角色写死在设计里。所以这一层改成运行时状态机。</p>
+
+  <div class="arb" style="margin-top:18px">
+    <div class="arb-flow">
+      <div class="arb-step imp">
+        <div class="sn">1 · 探测</div>
+        <div class="sd">电脑回环是否有信号、手机是否在线、会议进程是否存在</div>
+      </div>
+      <div class="arb-step imp">
+        <div class="sn">2 · 选举</div>
+        <div class="sd">电脑有信号 → 电脑主采；否则手机接管。同一时刻只一路上行</div>
+      </div>
+      <div class="arb-step">
+        <div class="sn">3 · 无缝切换</div>
+        <div class="sd">保留最近 10 轮上下文，新端接续，不重开会话</div>
+      </div>
+      <div class="arb-step">
+        <div class="sn">4 · 可见</div>
+        <div class="sd">两端都常显"电脑采集 / 手机采集"，可手动强制切换</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout teal" style="margin-top:16px">
+    <b>双轨带来的两个白捡的收益：</b>① <b>说话人分离不用猜</b>——回环轨就是对方，麦克风轨就是自己，准确率接近 100%，手机端那套 88% 的问句推断可以退居二线。② <b>回声消除有了理想参考</b>——回环流拿到的正是"此刻正在播放的对方声音"，用它做 AEC 的 reference，比任何盲估计都准。这两件事只有在电脑采集时才成立。
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>两条路径的延迟预算</h2></div>
+  <p class="lead">先说结论：<b>电脑路径比手机路径只快 200–300ms，别指望砍半。</b>它真正值钱的是识别准确率和天然分轨。</p>
+  <table style="margin-top:18px">
+    <thead><tr><th style="width:300px">环节</th><th style="width:180px">电脑路径（双轨）</th><th>手机路径（单轨）</th></tr></thead>
+    <tbody>
+      <tr><td>采集缓冲</td><td>40 ms</td><td>40 ms</td></tr>
+      <tr><td>VAD 断句</td><td>100 ms</td><td>120 ms</td></tr>
+      <tr><td>上行 + 流式 ASR</td><td>250–400 ms<br><span style="font-size:11.5px;color:var(--tx3)">数字直采，识别快且稳</span></td><td>350–550 ms<br><span style="font-size:11.5px;color:var(--tx3)">隔空拾音，易触发重试</span></td></tr>
+      <tr><td>问句 / 角色判定</td><td>30 ms（只看对方轨）</td><td>60 ms（需推断）</td></tr>
+      <tr><td>prompt 组装</td><td>20 ms</td><td>20 ms</td></tr>
+      <tr><td>LLM 首 token</td><td>500–800 ms</td><td>500–800 ms</td></tr>
+      <tr><td>渲染 + 推送对端</td><td>30–60 ms</td><td>60 ms</td></tr>
+      <tr class="total"><td style="color:var(--amber)">合计 P50</td><td>1.0–1.4 s</td><td>1.3–1.7 s</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn" style="margin-top:16px">
+    <b>优化的重点不在采集端。</b>LLM 首 token 占了全链路 55–60% 的预算，ASR 出字占 25%。换采集端能拿回 200ms，但换个快模型能拿回 500ms —— 后者才是该花力气的地方。
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>技术栈：Electron 不动，补一个 Rust sidecar</h2></div>
+  <p class="lead">恢复电脑采音后，ADR-001 里"迁移 Tauri"的第一个触发条件确实被触发了。但结论是<b>不整壳迁移</b>——整个项目只有一个地方需要 Rust：拿 PCM。</p>
+
+  <div class="grid g2" style="margin-top:18px">
+    <div class="card">
+      <h3>为什么不整壳迁 Tauri</h3>
+      <p style="font-size:12.5px;margin-top:8px">收益：包体 120→15MB。成本：托盘、快捷键、多显示器、WebContentsView、亚克力窗<b>全部重写</b>。</p>
+      <p style="font-size:12.5px;margin-top:8px;color:var(--red)">为 200 行采集代码重写整个外壳，不划算。</p>
+    </div>
+    <div class="card">
+      <h3>为什么要 sidecar 而不是纯 Electron</h3>
+      <p style="font-size:12.5px;margin-top:8px">Electron 其实能抓 loopback（<code style="font-size:11px;background:#f2f4f7;padding:1px 4px;border-radius:3px">audio: 'loopback'</code>），但：</p>
+      <p style="font-size:12.5px;margin-top:6px">① <b>必须同时请求屏幕视频轨</b>才算拿到音频 → 要抓屏，隐私观感很差；② 双轨时间戳不在同一时钟，对齐误差几十毫秒。</p>
+    </div>
+  </div>
+
+  <table style="margin-top:16px">
+    <thead><tr><th style="width:130px">层</th><th style="width:250px">选型</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>桌面外壳</td><td>Electron + electron-builder</td><td>维持不变，不整壳迁移</td></tr>
+      <tr><td><b>桌面采集</b></td><td><b>Rust sidecar（~200 行）</b></td><td><code>windows</code> crate 直调 WASAPI，双轨共时钟，独立进程崩溃不影响 UI。stdout 输出二进制帧，stdin 收 JSON 命令</td></tr>
+      <tr><td>移动外壳</td><td>Capacitor 7 + Gradle</td><td>复用 React；录音/前台服务/投屏写 Kotlin 插件</td></tr>
+      <tr><td>共享逻辑</td><td>TypeScript（pnpm workspace）</td><td>含<b>采集仲裁状态机</b>，三处复用</td></tr>
+      <tr><td>AEC</td><td>回环流作 reference 的 AEC3</td><td>回环 = 正在播放的对方声音，理想参考信号</td></tr>
+      <tr><td>ASR / LLM</td><td>国内厂商 + OpenAI 兼容</td><td>可切换，用户自带 Key</td></tr>
+      <tr><td>简历托管</td><td>Electron <code>spawn</code> + <code>WebContentsView</code></td><td>魔方简历需运行环境，PC 托管其子进程</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout" style="margin-top:16px">
+    <b>M1 的正确顺序：</b>先用 Electron 内建 loopback 花 1 天验证"能不能抓到声、延迟多少"，再决定要不要写 sidecar。不要一上来就啃 WASAPI —— 万一目标机器上回环抓不到，你会在错误的地方浪费两周。
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">07</span><h2>双端同步：双向</h2></div>
+  <p class="lead">谁跑出思路卡，就推给另一端渲染。哪端是采集端不重要，两端都能显示。</p>
+  <table style="margin-top:16px">
+    <thead><tr><th style="width:190px">方向</th><th style="width:150px">场景</th><th>实现</th></tr></thead>
+    <tbody>
+      <tr><td>电脑 → 手机</td><td>电脑单机，手机当第二屏</td><td>思路卡 JSON 经局域网 WebSocket 推送，手机原生渲染，延迟 &lt;50ms</td></tr>
+      <tr><td>手机 → 电脑</td><td>手机单机，眼睛看大屏</td><td>同上，方向相反</td></tr>
+      <tr><td>手机整屏 → 电脑</td><td>演示、远程求助</td><td>MediaProjection + H.264，延迟 &lt;200ms（备通道）</td></tr>
+      <tr><td>简历数据 电脑 → 手机</td><td>手机端只读锚定</td><td>标准 <code>Resume</code> JSON 单向同步</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">08</span><h2>魔方简历：只装电脑端</h2></div>
+  <p class="lead">它需要运行环境，所以只做在电脑端；手机端不集成编辑器，只接收只读的结构化数据用于思路锚定。</p>
+  <div class="grid g2" style="margin-top:18px">
+    <div class="card">
+      <h3>电脑端集成方式</h3>
+      <ul style="list-style:none;margin-top:8px">
+        <li style="font-size:12.5px;padding-left:14px;position:relative;margin-top:6px"><span style="position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--tx3)"></span>Electron 主进程 <code style="font-size:11px;background:#f2f4f7;padding:1px 4px;border-radius:3px">spawn</code> 它的服务，端口动态分配</li>
+        <li style="font-size:12.5px;padding-left:14px;position:relative;margin-top:6px"><span style="position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--tx3)"></span><code style="font-size:11px;background:#f2f4f7;padding:1px 4px;border-radius:3px">WebContentsView</code> 内嵌页面，原生外壳里直接编辑</li>
+        <li style="font-size:12.5px;padding-left:14px;position:relative;margin-top:6px"><span style="position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--tx3)"></span>退出时清理子进程；崩溃自动重启最多 3 次</li>
+        <li style="font-size:12.5px;padding-left:14px;position:relative;margin-top:6px"><span style="position:absolute;left:0;top:9px;width:6px;height:1px;background:var(--tx3)"></span>启动检测 Node/Python 依赖，缺什么给一键安装指引</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>数据最终都转成 <code style="font-size:12px">Resume</code></h3>
+      <p style="font-size:12.5px;margin-top:8px">不管它数据存在 localStorage、本地 JSON 还是数据库，最终都抽成内部标准结构。思路引擎只认这个结构——将来换掉魔方简历也不影响主链路。</p>
+      <p style="font-size:12.5px;margin-top:10px;color:var(--red)"><b>最大的坑：</b>环境依赖分发。不能让用户先装 Python/Node 再用，M3 前必须评估"内嵌精简运行时"或"引导式一键安装"。</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">09</span><h2>合规：只做国内，两件事必须做</h2></div>
+  <table style="margin-top:18px">
+    <thead><tr><th style="width:230px">风险点</th><th style="width:150px">依据</th><th>处理</th></tr></thead>
+    <tbody>
+      <tr><td>采音时对方不知情</td><td>《民法典》1032/1033 条</td><td>录制自己参与的对话，司法实践通常认可；需不做隐藏设计、不对外传播</td></tr>
+      <tr><td>音频上传云端 ASR</td><td>PIPL 13 / 17 条</td><td><b>首次使用强制告知并单独确认</b>；另提供本地 ASR 选项</td></tr>
+      <tr><td>简历与面试记录留存</td><td>PIPL 6 条</td><td>默认只留结构化摘要，7 天自动清除，一键清除</td></tr>
+      <tr><td>开源后被改造成作弊工具</td><td>声誉风险</td><td>AGPL-3.0 + README 边界声明 + 代码里就不做隐藏能力</td></tr>
+      <tr><td>境外合规</td><td>GDPR / 美国各州法</td><td><b>不涉及</b>——仅面向中国大陆</td></tr>
+    </tbody>
+  </table>
+  <div class="callout teal" style="margin-top:16px">
+    <b>一个小功能，一份大诚意：</b>可选的"开场提示音"——开始聆听时播 2 秒轻音。对方问"你那边什么声音"时，你能坦然说"我在用工具记录，怕漏掉您的问题"。这句话说出来，性质就从"偷偷作弊"变成"认真准备"。
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">10</span><h2>路线图</h2></div>
+  <p class="lead">M1 是整个项目的不确定性中心：电脑回环在你的目标机器上能不能稳定抓到声。所以 M1 的第一步不是写代码，是花 1 天做可行性验证。</p>
+  <div class="rm" style="margin-top:18px">
+    <div class="rm-track">
+      <div class="rm-item now">
+        <div class="dot"></div>
+        <div class="cn">M0</div>
+        <h4>骨架</h4>
+        <p>Electron 浮窗 + Capacitor 手机壳 + 配对 + 采集仲裁状态机，两端状态互见</p>
+        <div class="eff">~14 人日</div>
+      </div>
+      <div class="rm-item">
+        <div class="dot"></div>
+        <div class="cn">M1</div>
+        <h4>耳朵</h4>
+        <p>先 1 天验证内建 loopback → 再上 Rust sidecar；手机单轨并行开发</p>
+        <div class="eff">~28 人日</div>
+      </div>
+      <div class="rm-item">
+        <div class="dot"></div>
+        <div class="cn">M2</div>
+        <h4>大脑</h4>
+        <p>LLM 网关 + 思路引擎 + 双向同步渲染，电脑路径 P95 &lt;2.0s</p>
+        <div class="eff">~22 人日</div>
+      </div>
+      <div class="rm-item">
+        <div class="dot"></div>
+        <div class="cn">M3</div>
+        <h4>简历</h4>
+        <p>魔方简历子进程托管 + 内嵌编辑 + JD 缺口清单</p>
+        <div class="eff">~25 人日</div>
+      </div>
+      <div class="rm-item">
+        <div class="dot"></div>
+        <div class="cn">M4</div>
+        <h4>打磨开源</h4>
+        <p>复盘、像素镜像、打包签名、README/PRIVACY、GitHub 发布</p>
+        <div class="eff">~15 人日</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">11</span><h2>风险登记册</h2></div>
+  <table style="margin-top:18px">
+    <thead><tr><th style="width:50px">ID</th><th style="width:300px">风险</th><th style="width:60px">等级</th><th>缓解</th></tr></thead>
+    <tbody>
+      <tr><td>R1</td><td>电脑回环在某些设备/驱动上抓不到声</td><td class="up">高</td><td>兼容矩阵测试；失败时明确提示并回退手机采集</td></tr>
+      <tr><td>R2</td><td>魔方简历环境依赖难分发</td><td class="up">高</td><td>M3 前评估内嵌运行时；兜底降级为"只读导出文件"</td></tr>
+      <tr><td>R3</td><td>外放时麦克风拾到对方声音（回声）</td><td class="mid">中</td><td>回环流作 reference 做 AEC3；或建议戴耳机</td></tr>
+      <tr><td>R4</td><td>蓝牙耳机切 HFP 后回环异常</td><td class="mid">中</td><td>检测并提示；建议有线/USB</td></tr>
+      <tr><td>R5</td><td>Rust sidecar 崩溃</td><td class="mid">中</td><td>独立进程 + 自动拉起 + 降级到内建 loopback</td></tr>
+      <tr><td>R6</td><td>手机隔空拾音质量差</td><td class="mid">中</td><td>作为备选路径而非主路径；灵敏度测试引导</td></tr>
+      <tr><td>R7</td><td>全屏会议遮挡浮窗</td><td class="mid">中</td><td>screen-saver 层级；建议窗口化会议</td></tr>
+      <tr><td>R8</td><td>双端同时采集导致重复识别</td><td class="mid">中</td><td>采集仲裁：同一时刻只一路上行</td></tr>
+      <tr><td>R9</td><td>云端 ASR 网络抖动</td><td class="mid">中</td><td>双供应商可切；弱网降级提示</td></tr>
+      <tr><td>R10</td><td>技术专名识别错</td><td class="mid">中</td><td>热词表 + 从简历自动抽词</td></tr>
+      <tr><td>R11</td><td>开源后被改造成作弊工具</td><td class="mid">中</td><td>AGPL-3.0 + README 边界声明</td></tr>
+      <tr><td>R12</td><td>单人开发进度失控</td><td class="up">高</td><td>M0–M4 串行，M1 不过不进 M2</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">12</span><h2>已定与未定</h2></div>
+  <div class="dec" style="margin-top:18px">
+    <div class="dec-row"><div class="i">1</div><div><b>采集</b>　<em>双端都能采能识；电脑双轨为主，手机单轨为备</em></div></div>
+    <div class="dec-row"><div class="i">2</div><div><b>仲裁</b>　<em>电脑优先，手机热备；同一时刻只一路上行，无缝切换</em></div></div>
+    <div class="dec-row"><div class="i">3</div><div><b>技术栈</b>　<em>Electron + Capacitor + TS core，另加 Rust 采集 sidecar；不整壳迁 Tauri</em></div></div>
+    <div class="dec-row"><div class="i">4</div><div><b>魔方简历</b>　<em>只装电脑端，子进程托管 + WebContentsView 内嵌；手机只收只读 JSON</em></div></div>
+    <div class="dec-row"><div class="i">5</div><div><b>投屏</b>　<em>双向内容同步为主，像素镜像为备</em></div></div>
+    <div class="dec-row"><div class="i">6</div><div><b>模型</b>　<em>不做本地大模型，全第三方 API，Key 用户自填</em></div></div>
+    <div class="dec-row"><div class="i">7</div><div><b>范围</b>　<em>仅中国大陆；开源 AGPL-3.0；接受赞助，无付费墙</em></div></div>
+  </div>
+
+  <div class="callout warn" style="margin-top:20px">
+    <b>仍等你两样东西：</b>① 魔方简历的 GitHub 链接 ② 它需要什么环境（Node / Python / 纯静态）。拿到后我才能定"子进程托管"还是"直接加载本地文件"，以及环境依赖要不要内嵌。<br>
+    其余可边做 M0 边定：ASR 供应商、LLM 首选、回环无声时是自动切手机还是弹窗问、是否做像素镜像、目标机器是 Win10 还是 Win11（<b>亚克力在 Win10 上不可用</b>，需降级为纯半透明）。
+  </div>
+</section>
+
+<div class="foot">
+  <span>面试副驾 · 需求与架构规划书 v0.3</span>
+  <span>配套：01-需求规格说明书.md · 03-技术栈决策记录.md（ADR-001 / 002）</span>
+</div>
+
+</div>
+</body>
+</html>

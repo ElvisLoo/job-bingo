@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>面必过</title>
+<link rel="stylesheet" href="overlay.css" />
+</head>
+<body>
+  <div id="app" class="app">
+    <header class="bar">
+      <span class="dot" id="dot"></span>
+      <span class="src" id="src">待机</span>
+      <span class="sep"></span>
+      <span class="lat" id="lat">—</span>
+      <span class="grow"></span>
+      <span class="mode" id="mode">穿透</span>
+    </header>
+
+    <main class="body" id="body">
+      <div class="empty" id="empty">
+        浮窗已就位 · 等待问题<br />
+        <span class="hint-small">设置与演练：Ctrl+Alt+K　显示/隐藏：Ctrl+Alt+H</span>
+      </div>
+
+      <section class="card" id="card" hidden>
+        <div class="anchor"><span class="tag">锚点</span><span id="anchor">—</span></div>
+        <ul class="points" id="points"></ul>
+        <div class="caution" id="caution" hidden></div>
+      </section>
+
+      <div class="question" id="question" hidden></div>
+    </main>
+  </div>
+  <script src="overlay.js"></script>
+</body>
+</html>

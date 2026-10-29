@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>面必过 · 浮窗预览</title>
+<link rel="stylesheet" href="overlay.css" />
+<style>
+  body { background: #1b2233; padding: 24px; }
+  .frame {
+    max-width: 780px; margin: 0 auto; height: 300px;
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 18px 50px rgba(0,0,0,.45);
+  }
+  .cap { max-width: 780px; margin: 14px auto 0; color: #6b768d; font-size: 12px; line-height: 1.8; }
+  .mock { max-width: 780px; margin: 22px auto 0; }
+  .mock h3 { font-size: 13px; color: #a9b6cc; font-weight: 600; margin: 0 0 10px; }
+  .mockgrid { display: flex; gap: 14px; }
+  .mockcard { flex: 1; background: rgba(13,18,30,.9); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 12px 14px; }
+  .mockcard .a { font-size: 11.5px; color: #93c5fd; margin-bottom: 7px; }
+  .mockcard ul { margin: 0; padding-left: 16px; }
+  .mockcard li { font-size: 14px; line-height: 1.85; color: #e8ecf5; }
+  .mockcard.bad { border-color: rgba(248,113,113,.4); }
+  .mockcard.bad .a { color: #f87171; }
+  .mockcard .why { margin-top: 8px; font-size: 11px; color: #f87171; }
+  .mockcard.ok .why { color: #34d399; }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div id="app" class="app">
+      <header class="bar">
+        <span class="dot live"></span>
+        <span class="src">电脑采集</span>
+        <span class="sep"></span>
+        <span class="lat">820ms · 1次</span>
+        <span class="grow"></span>
+        <span class="mode">穿透</span>
+      </header>
+      <main class="body">
+        <section class="card">
+          <div class="anchor"><span class="tag">锚点</span><span>项目 ERP 成本分析 · 昆山万金天宇</span></div>
+          <ul class="points">
+            <li class="kind-fact"><span class="k">事实</span><span>库存 1000 pcs / 余额 -3994.58</span></li>
+            <li class="kind-path"><span class="k">路径</span><span>INVQ01 流水 → INV102 重算</span></li>
+            <li class="kind-key"><span class="k">关键</span><span>出入库异动类型 + 暂估凭证</span></li>
+            <li class="kind-close"><span class="k">收尾</span><span>落到单据层，不是调总数</span></li>
+          </ul>
+          <div class="caution">⚠ 别急着说"改好了"，先讲怎么定位</div>
+        </section>
+        <div class="question">问：说说你处理过最复杂的一次库存成本异常</div>
+      </main>
+    </div>
+  </div>
+  <p class="cap">上方为浮窗实际渲染效果（780×300，置顶 · 半透明 · 点击穿透）。整卡一次性淡入 120ms，不逐字流式、不做打字机 —— 面试中任何动态元素都会把视线从面试官身上拽走。</p>
+
+  <div class="mock">
+    <h3>校验器实际拦截效果（端到端实测，非示意）</h3>
+    <div class="mockgrid">
+      <div class="mockcard bad">
+        <div class="a">模型第一次输出 → 被拦截</div>
+        <ul>
+          <li>我通过 INVQ01 定位到了这笔异常。</li>
+          <li>首先我看了库存表，其次我重算了成本</li>
+        </ul>
+        <div class="why">SENTENCE_END（句末句号）<br />CONNECTIVE（首先/其次）</div>
+      </div>
+      <div class="mockcard ok">
+        <div class="a">重试后输出 → 通过</div>
+        <ul>
+          <li>库存 1000 pcs / 余额 -3994.58</li>
+          <li>INVQ01 流水 → INV102 重算</li>
+          <li>出入库异动类型 + 暂估凭证</li>
+          <li>落到单据层，不是调总数</li>
+        </ul>
+        <div class="why">全部 ≤18 汉字 · 无句号 · 数字均来自简历原文</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
