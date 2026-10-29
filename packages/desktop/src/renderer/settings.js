@@ -196,7 +196,14 @@ $('reviewRun').onclick = async () => {
   $('reviewOut').hidden = true;
   try {
     const r = await window.copilot.reviewGenerate();
-    if (!r.ok) { $('reviewNote').textContent = r.error || '复盘失败'; return; }
+    if (!r.ok && !r.markdown) { $('reviewNote').textContent = r.error || '复盘失败'; return; }
+    // 落盘失败但内容已生成：仍然展示，提示用户自行复制
+    if (!r.ok && r.markdown) {
+      $('reviewOut').textContent = r.markdown;
+      $('reviewOut').hidden = false;
+      $('reviewNote').textContent = '已生成但保存失败（' + (r.saveError || '未知') + '），可复制上方内容';
+      return;
+    }
     $('reviewOut').textContent = r.markdown || '';
     $('reviewOut').hidden = false;
     const bits = [];

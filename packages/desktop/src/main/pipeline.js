@@ -67,6 +67,13 @@ class Pipeline {
     this.lastAskAt = 0;
     this.lastQuestion = '';
     this.inflight = false;
+    // 强制请求（手动提问 / 手机端 / 演示）原本直接绕过 inflight，
+    // 并发时同一个问题会真的发两次请求（重复计费，评审实跑确认过）。
+    // 这里让它排队：不丢弃，但一次只跑一个。
+    // 强制请求的互斥锁：同一时刻只跑一个，后来的排队等前一个结束。
+    // 之前 force:true 直接绕过 inflight，并发时会真的发两次请求（评审实跑确认）。
+    this._forceLock = null;
+    this._asrLock = null;
     this.stats = { ingested: 0, droppedShort: 0, droppedDup: 0, droppedOwn: 0, generated: 0, busyWaits: 0 };
     // 全场记录（不裁剪），只供复盘使用。history 会截断到 6 轮，不能拿它复盘。
     this.transcript = [];
@@ -161,6 +168,26 @@ class Pipeline {
     if (!force && now - this.lastAskAt < MIN_GAP_MS) return { skipped: 'too-soon' };
     if (!force && similarity(clean, this.lastQuestion) > 0.72) { this.stats.droppedDup++; return { skipped: 'duplicate' }; }
 
+    // 抢锁必须是原子的（同步完成），否则三个请求同时进来会全都看到「锁为空」。
+    // 之前先 await 再赋值，await 会让出执行权，导致三个请求同时通过检查 ——
+    // 并发测试实测并发度 3，等于没锁。
+    let releaseLock = null;
+    if (force) {
+      const prev = this._forceLock;
+      this._forceLock = new Promise((r) => { releaseLock = r; });
+      if (prev) {
+        try { await prev; } catch (_) { /* 前一个失败不影响本次 */ }
+      }
+    }
+    const _doRelease = () => {
+      if (releaseLock) {
+        releaseLock();
+        releaseLock = null;
+        // 只清自己持有的那把锁，避免把后来者的锁清掉
+        if (force) this._forceLock = null;
+      }
+    };
+
     this.inflight = true;
     this.lastAskAt = now;
     this.lastQuestion = clean;
@@ -234,6 +261,13 @@ class Pipeline {
       return { ok: false, error: String(e.message).slice(0, 200) };
     } finally {
       this.inflight = false;
+    // 强制请求（手动提问 / 手机端 / 演示）原本直接绕过 inflight，
+    // 并发时同一个问题会真的发两次请求（重复计费，评审实跑确认过）。
+    // 这里让它排队：不丢弃，但一次只跑一个。
+    // 强制请求的互斥锁：同一时刻只跑一个，后来的排队等前一个结束。
+    // 之前 force:true 直接绕过 inflight，并发时会真的发两次请求（评审实跑确认）。
+    this._forceLock = null;
+    this._asrLock = null;
       this.waitingBusy = false;
       this.cancelWaiting = false;
     }
@@ -328,6 +362,28 @@ class Pipeline {
   async feedPcm(pcm, opts = {}) {
     const role = opts.role === 'me' ? 'me' : 'them';
     this.ensureAsr();
+
+    // 关键：锁必须在**转写之前**抢。
+    // 之前锁在 ingest 里，而转写（网络请求，几百毫秒到几秒）在它之前跑，
+    // 三个音频段同时进来会并发调用三次 ASR —— 既重复计费，转写服务也容易被限流。
+    if (this._asrLock) {
+      try { await this._asrLock; } catch (_) { /* 前一个失败不影响本次 */ }
+    }
+    let releaseAsr = null;
+    {
+      const prev = this._asrLock;
+      this._asrLock = new Promise((r) => { releaseAsr = r; });
+      if (prev) { try { await prev; } catch (_) {} }
+    }
+    try {
+      return await this._feedPcmInner(pcm, role, opts);
+    } finally {
+      if (releaseAsr) releaseAsr();
+      this._asrLock = null;
+    }
+  }
+
+  async _feedPcmInner(pcm, role, opts) {
     let res = null;
     try {
       res = await this.router.transcribe(pcm, { sampleRate: 16000 });

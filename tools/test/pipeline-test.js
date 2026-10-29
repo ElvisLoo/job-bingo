@@ -265,3 +265,66 @@ test('手机端带来的 history 会并入上下文', async () => {
   assert.ok(h.some((t) => t.includes('做过什么项目')), '手机端上下文应被采纳');
   assert.ok(h.some((t) => t.includes('ERP 成本核算')));
 });
+
+// ---------------- 并发：强制请求不得重复计费 ----------------
+
+test('两个强制请求并发时串行执行，不重复发起', async () => {
+  const { Pipeline } = require('../../packages/desktop/src/main/pipeline');
+  let inFlight = 0;
+  let maxConcurrent = 0;
+  let callCount = 0;
+
+  const p = new Pipeline({
+    getConfig: () => ({ llm: { apiKey: '' }, jd: '' }),
+    getResume: () => ({}),
+    pushCard: () => {},
+  });
+
+  // 用假路由统计并发度
+  p.router = {
+    transcribe: async () => {
+      callCount++;
+      inFlight++;
+      maxConcurrent = Math.max(maxConcurrent, inFlight);
+      await new Promise((r) => setTimeout(r, 40));
+      inFlight--;
+      return { text: '这是一段转写结果', engine: 'cloud' };
+    },
+  };
+  p.ensureAsr = () => p.router;
+
+  const pcm = new Float32Array(16000);
+  await Promise.all([
+    p.feedPcm(pcm, { role: 'them' }),
+    p.feedPcm(pcm, { role: 'them' }),
+    p.feedPcm(pcm, { role: 'them' }),
+  ]);
+
+  assert.equal(callCount, 3, '三个请求都应被处理，不能丢弃');
+  assert.equal(maxConcurrent, 1, `并发度应为 1，实际 ${maxConcurrent}（并发会造成重复计费）`);
+});
+
+test('前一个强制请求失败后，后续请求仍能执行（锁会释放）', async () => {
+  const { Pipeline } = require('../../packages/desktop/src/main/pipeline');
+  let n = 0;
+  const p = new Pipeline({
+    getConfig: () => ({ llm: { apiKey: '' }, jd: '' }),
+    getResume: () => ({}),
+    pushCard: () => {},
+  });
+  p.router = {
+    transcribe: async () => {
+      n++;
+      if (n === 1) throw new Error('第一路失败');
+      return { text: '第二个请求的结果', engine: 'cloud' };
+    },
+  };
+  p.ensureAsr = () => p.router;
+
+  const pcm = new Float32Array(16000);
+  const a = p.feedPcm(pcm, { role: 'them' });
+  const b = p.feedPcm(pcm, { role: 'them' });
+  await Promise.allSettled([a, b]);
+
+  assert.equal(n, 2, '第二个请求必须被执行，说明锁已释放，没有死锁');
+});

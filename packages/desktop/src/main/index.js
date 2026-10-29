@@ -12,7 +12,7 @@ const fs = require('fs');
 const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, screen, dialog, Notification, shell } = require('electron');
 const core = require('@job-bingo/core');
 const { Pipeline } = require('./pipeline');
-const { createTrayImage } = require('./tray-icon');
+const { createTrayImage, createAppIcon } = require('./tray-icon');
 const { initAudioCapture, startCapture, stopCapture, captureStatus, selfTestCapture } = require('./audio-capture');
 
 // ---------- 单实例 ----------
@@ -144,8 +144,9 @@ function applyContentProtection() {
 function createSettings() {
   if (settings && !settings.isDestroyed()) { settings.focus(); return settings; }
   settings = new BrowserWindow({
-    width: 900,
-    height: 720,
+    width: 960,
+    height: 760,
+    icon: createAppIcon(),
     title: '面必过 · 设置与演练',
     backgroundColor: '#0f1420',
     webPreferences: {
@@ -296,7 +297,7 @@ function reviewStamp() {
   const d = new Date();
   const p2 = (n) => String(n).padStart(2, '0');
   return {
-    name: `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}`,
+    name: `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`,
     display: `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`,
   };
 }
@@ -318,12 +319,26 @@ ipcMain.handle('review:generate', async () => {
   const stamp = reviewStamp();
   try {
     fs.mkdirSync(REVIEW_DIR, { recursive: true });
-    const file = path.join(REVIEW_DIR, `复盘-${stamp.name}.md`);
+    // 文件名原本只到分钟，同一分钟内连点两次「生成复盘」会互相覆盖。
+    // 这里加秒，并做一次冲突探测兜底。
+    let file = path.join(REVIEW_DIR, `复盘-${stamp.name}.md`);
+    for (let i = 2; fs.existsSync(file); i++) {
+      file = path.join(REVIEW_DIR, `复盘-${stamp.name}-${i}.md`);
+    }
     fs.writeFileSync(file, md, 'utf8');
     return { ok: true, review: r.review, markdown: md, file, degraded: !!r.degraded };
   } catch (e) {
-    // 落盘失败不该让用户拿不到结果：把 Markdown 一并返回，界面里可复制
-    return { ok: true, review: r.review, markdown: md, file: null, saveError: e.message, degraded: !!r.degraded };
+    // 落盘失败必须如实告诉调用方：原来返回 ok:true，
+    // 任何依赖 ok 的判断都会被骗过（评审明确指出这是「伪绿」）。
+    // Markdown 仍然返回，用户可以在界面里复制，不至于白算一次。
+    return {
+      ok: false,
+      file: null,
+      saveError: String(e && e.message || e).slice(0, 200),
+      review: r.review,
+      markdown: md,
+      degraded: !!r.degraded,
+    };
   }
 });
 

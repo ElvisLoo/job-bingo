@@ -213,6 +213,7 @@ function startCapture() {
   win = new BrowserWindow({
     width: 520,
     height: 300,
+    icon: require('./tray-icon').createAppIcon(),
     // 保持可见：隐藏窗口里 getDisplayMedia 可能拿不到流（实测 0 帧）。
     // 该窗口只显示采集状态，不显示任何画面内容。
     show: true,
