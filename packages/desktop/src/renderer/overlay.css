@@ -1,10 +1,15 @@
+/* ============================================================
+   面必过 · 浮窗样式
+   设计原则：
+   1. 面试时你只能瞄一眼，所以「要点」必须是视觉重心，其余全部弱化；
+   2. 用左侧色条表达状态（绿=正常/黄=等待/红=异常），不用文字占位；
+   3. 半透明但不抢戏：背景压深、文字提亮，保证在任意会议画面之上都读得清。
+   ============================================================ */
+
 * { box-sizing: border-box; }
 
 html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  overflow: hidden;
+  margin: 0; padding: 0; height: 100%; overflow: hidden;
   background: transparent;
   font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
   color: #e8ecf5;
@@ -14,130 +19,153 @@ html, body {
 }
 
 .app {
+  position: relative;
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 10px 16px 12px;
+  padding: 9px 16px 11px 22px;
   border-radius: 14px;
-  background: rgba(13, 18, 30, 0.80);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: linear-gradient(180deg, rgba(15, 20, 33, 0.90), rgba(11, 15, 25, 0.86));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(2px);
   -webkit-app-region: drag;
+  overflow: hidden;
 }
+
+/* 左侧状态色条 */
+.edge {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: linear-gradient(180deg, #3b82f6, #22d3ee);
+  opacity: .55;
+  transition: background .25s, opacity .25s;
+}
+.edge.live { background: linear-gradient(180deg, #10b981, #34d399); opacity: 1; }
+.edge.wait { background: linear-gradient(180deg, #f59e0b, #fbbf24); opacity: 1; }
+.edge.err  { background: linear-gradient(180deg, #ef4444, #f87171); opacity: 1; }
 
 /* ---------- 顶部状态条 ---------- */
 .bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  color: #8b96ab;
-  letter-spacing: 0.02em;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: #7c879c; letter-spacing: .02em;
   flex: 0 0 auto;
 }
-.dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: #4b5563;
-  box-shadow: none;
-  transition: background .2s, box-shadow .2s;
+.brand { display: flex; align-items: center; gap: 5px; color: #93a2bb; }
+.brand .logo {
+  width: 16px; height: 16px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #2563eb, #22d3ee);
+  color: #fff;
 }
-.dot.live { background: #34d399; box-shadow: 0 0 8px rgba(52,211,153,.75); }
-.dot.err  { background: #f87171; box-shadow: 0 0 8px rgba(248,113,113,.75); }
-.dot.wait { background: #fbbf24; box-shadow: 0 0 8px rgba(251,191,36,.7); }
-.sep { width: 1px; height: 10px; background: rgba(255,255,255,.14); }
+.brand .name { font-size: 11.5px; font-weight: 600; letter-spacing: .04em; color: #b7c4d8; }
+
+.dot { width: 6px; height: 6px; border-radius: 50%; background: #4b5563; transition: background .2s, box-shadow .2s; }
+.dot.live { background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, .75); }
+.dot.err  { background: #f87171; box-shadow: 0 0 8px rgba(248, 113, 113, .75); }
+.dot.wait { background: #fbbf24; box-shadow: 0 0 8px rgba(251, 191, 36, .70); }
+.sep { width: 1px; height: 9px; background: rgba(255, 255, 255, .12); }
 .grow { flex: 1; }
 .mode {
-  padding: 1px 7px; border-radius: 999px;
-  background: rgba(255,255,255,.07);
-  border: 1px solid rgba(255,255,255,.09);
+  padding: 1px 7px; border-radius: 999px; font-size: 10.5px;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .08);
 }
 
 /* ---------- 主体 ---------- */
 .body { flex: 1; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
 
-.empty {
-  text-align: center;
-  font-size: 14px;
-  color: #6b768d;
-  line-height: 1.9;
+/* 空状态 */
+.empty { text-align: center; color: #5f6b81; }
+.empty-icon { color: #3f4a5e; margin-bottom: 6px; }
+.empty-main { font-size: 13.5px; color: #7f8ba1; }
+.empty-keys { margin-top: 7px; font-size: 10.5px; color: #4b5568; }
+kbd {
+  display: inline-block; padding: 0 4px; margin: 0 1px;
+  border-radius: 3px; font-size: 10px; font-family: inherit;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .09);
+  color: #6b7789;
 }
-.hint-small { font-size: 11px; color: #4d576b; }
 
-.card { animation: fade 120ms ease-out both; }
-
-@keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+/* 思路卡 */
+.card { animation: fade 140ms ease-out both; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
 .anchor {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 13px; color: #9fb3d1;
-  margin-bottom: 8px;
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; color: #8fa4c2;
+  margin-bottom: 7px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .tag {
   flex: 0 0 auto;
-  font-size: 10px; padding: 1px 6px; border-radius: 4px;
-  background: rgba(96, 165, 250, .16);
+  font-size: 9.5px; padding: 1px 6px; border-radius: 4px;
+  background: rgba(96, 165, 250, .14);
   color: #93c5fd;
-  border: 1px solid rgba(96,165,250,.28);
+  border: 1px solid rgba(96, 165, 250, .26);
 }
-.anchor.no-match .tag { background: rgba(251,191,36,.14); color: #fbbf24; border-color: rgba(251,191,36,.3); }
+.anchor.no-match .tag { background: rgba(251, 191, 36, .12); color: #fbbf24; border-color: rgba(251, 191, 36, .28); }
+.anchor.no-match { color: #9a8b6a; }
 
+/* 要点：视觉重心 */
 .points { list-style: none; margin: 0; padding: 0; }
 .points li {
-  display: flex; align-items: baseline; gap: 9px;
-  font-size: 21px;
-  line-height: 1.55;
-  color: #f2f5fa;
-  padding: 2px 0;
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 3px 0;
+  font-size: 20px;
+  line-height: 1.5;
+  color: #f4f7fc;
+  letter-spacing: .01em;
 }
 .points li .k {
   flex: 0 0 auto;
-  font-size: 10px;
-  width: 34px;
+  font-size: 9.5px;
+  width: 32px;
   text-align: center;
   padding: 2px 0;
   border-radius: 4px;
   color: #7f8ea8;
-  background: rgba(255,255,255,.05);
-  border: 1px solid rgba(255,255,255,.07);
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid rgba(255, 255, 255, .07);
   transform: translateY(-2px);
 }
-.points li.kind-fact  .k { color:#93c5fd; background: rgba(96,165,250,.13);  border-color: rgba(96,165,250,.25); }
-.points li.kind-path  .k { color:#86efac; background: rgba(52,211,153,.13);  border-color: rgba(52,211,153,.25); }
-.points li.kind-key   .k { color:#fcd34d; background: rgba(251,191,36,.13);  border-color: rgba(251,191,36,.25); }
-.points li.kind-close .k { color:#c4b5fd; background: rgba(167,139,250,.13); border-color: rgba(167,139,250,.25); }
+.points li.kind-fact  .k { color: #93c5fd; background: rgba(96, 165, 250, .12);  border-color: rgba(96, 165, 250, .24); }
+.points li.kind-path  .k { color: #86efac; background: rgba(52, 211, 153, .12);  border-color: rgba(52, 211, 153, .24); }
+.points li.kind-key   .k { color: #fcd34d; background: rgba(251, 191, 36, .12);  border-color: rgba(251, 191, 36, .24); }
+.points li.kind-close .k { color: #c4b5fd; background: rgba(167, 139, 250, .12); border-color: rgba(167, 139, 250, .24); }
 
 .caution {
-  margin-top: 9px;
-  font-size: 12.5px;
+  margin-top: 8px;
+  font-size: 12px;
   color: #fbbf24;
-  opacity: .92;
+  opacity: .9;
   display: flex; gap: 6px; align-items: baseline;
 }
+.caution::before { content: "⚠"; opacity: .8; }
 
 .question {
-  margin-top: 8px;
-  font-size: 11.5px;
-  color: #5f6b81;
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, .05);
+  font-size: 11px;
+  color: #4f5a6e;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+/* 繁忙等待 */
 .busy {
-  margin-top: 10px;
+  margin-top: 9px;
   display: flex; align-items: center; gap: 8px;
-  font-size: 13px; color: #fbbf24;
+  font-size: 12.5px; color: #fbbf24;
 }
 .busy b { font-size: 15px; color: #fde68a; font-variant-numeric: tabular-nums; }
 .busy .spin {
   width: 11px; height: 11px; flex: 0 0 auto;
-  border: 2px solid rgba(251,191,36,.28);
+  border: 2px solid rgba(251, 191, 36, .28);
   border-top-color: #fbbf24;
   border-radius: 50%;
   animation: spin 900ms linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.err {
-  font-size: 12.5px; color: #f87171; line-height: 1.7;
-  white-space: pre-wrap;
-}
+.err { font-size: 12.5px; color: #f87171; line-height: 1.7; white-space: pre-wrap; }

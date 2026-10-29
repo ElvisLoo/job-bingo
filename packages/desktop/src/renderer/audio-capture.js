@@ -70,6 +70,46 @@ function setText(id, text, cls) {
   if (!el) return;
   el.textContent = text;
   el.className = cls || '';
+  // 状态徽章：状态文字与指示灯一起变，一眼看出「在采集 / 出错了」
+  if (id === 'state') {
+    const wrap = $('stateWrap');
+    if (wrap) wrap.className = 'badge' + (cls === 'ok' ? ' ok' : cls === 'err' ? ' err' : '');
+  }
+}
+
+// ---------- 电平条 ----------
+const BAR_COUNT = 24;
+function initBars(id) {
+  const box = $(id);
+  if (!box) return null;
+  box.innerHTML = '';
+  const cells = [];
+  for (let i = 0; i < BAR_COUNT; i++) {
+    const cell = document.createElement('i');
+    box.appendChild(cell);
+    cells.push(cell);
+  }
+  return cells;
+}
+const barsLoop = initBars('barsLoop');
+const barsMic = initBars('barsMic');
+
+/**
+ * 把 0–1 的线性 RMS 映射到 dB，再点亮对应格数。
+ * 用 dB 而不是线性值：人耳是对数的，线性刻度下正常说话只会点亮最右两格，
+ * 看起来像「没声音」。
+ */
+function paintBars(cells, rms) {
+  if (!cells) return;
+  const db = 20 * Math.log10(Math.max(rms, 1e-6));   // 约 -120 ~ 0
+  const norm = Math.max(0, Math.min(1, (db + 60) / 60)); // -60dB 以下算静音
+  const lit = Math.round(norm * BAR_COUNT);
+  for (let i = 0; i < cells.length; i++) {
+    const on = i < lit;
+    cells[i].className = on
+      ? 'on' + (i >= BAR_COUNT - 2 ? ' clip' : i >= BAR_COUNT - 6 ? ' hot' : '')
+      : '';
+  }
 }
 
 async function openMic() {
@@ -208,8 +248,8 @@ function startLevelProbe() {
         loop: latestLoopRms,
         mic: micOn && micFrames > 0 ? latestMicRms : null,
       });
-      const db = (v) => (20 * Math.log10(Math.max(v, 1e-6))).toFixed(0);
-      setText('level', `回环 ${db(latestLoopRms)} dB` + (micOn ? ` · 麦克风 ${db(latestMicRms)} dB` : ' · 单轨'), 'dim');
+      paintBars(barsLoop, latestLoopRms);
+      paintBars(barsMic, micOn ? latestMicRms : 0);
     } catch (_) { /* 窗口关闭时忽略 */ }
   }, 100);
 }
@@ -259,7 +299,8 @@ function bindBridgeEvents() {
     if (!p) return;
     const label = { me: '像是你在说（不生成卡片）', them: '像是对方在说（生成卡片）', unknown: '无法判断（按对方处理）', silence: '安静' }[p.role] || p.role;
     const cls = p.role === 'me' ? 'dim' : p.role === 'them' ? 'ok' : '';
-    setText('who', `${label} · 麦克风 ${p.micDb} dB / 回环 ${p.loopDb} dB`, cls);
+    if ($('whoPanel')) $('whoPanel').className = 'who-panel ' + (p.role === 'me' ? 'me' : p.role === 'them' ? 'them' : '');
+    setText('who', `${label} · 麦克风 ${p.micDb} dB / 回环 ${p.loopDb} dB`);
   });
 
   bridge.onSelfTest(playSelfTest);

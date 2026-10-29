@@ -16,7 +16,7 @@ async function load() {
   $('retryMin').value = config.busy?.retryMinutes ?? 5;
   $('maxMin').value = config.busy?.maxWaitMinutes ?? 60;
   $('resumeNote').textContent = hasResume ? '已导入（锚点可校验）' : '未导入';
-  $('llmNote').textContent = config.llm.apiKey ? '已配置 Key' : '未配置 Key · 演示模式';
+  $('saveNote').textContent = config.llm.apiKey ? '已配置 Key' : '未配置 Key · 演示模式';
 }
 
 $('save').onclick = async () => {
@@ -24,24 +24,24 @@ $('save').onclick = async () => {
     llm: { baseUrl: $('baseUrl').value.trim(), model: $('model').value.trim(), apiKey: $('apiKey').value.trim() },
     jd: $('jd').value,
   });
-  $('llmNote').textContent = $('apiKey').value.trim() ? '已保存 · Key 已配置' : '已保存 · 演示模式';
+  $('saveNote').textContent = $('apiKey').value.trim() ? '已保存 · Key 已配置' : '已保存 · 演示模式';
 };
 
 $('warmup').onclick = async () => {
-  $('llmNote').textContent = '预热中…';
+  $('saveNote').textContent = '预热中…';
   await window.copilot.warmup();
-  $('llmNote').textContent = '预热完成（首题更快）';
+  $('saveNote').textContent = '预热完成（首题更快）';
 };
 
-$('loadResume').onclick = async () => {
+$('importResume').onclick = async () => {
   const r = await window.copilot.loadResume();
   if (r.canceled) return;
   if (!r.ok) { $('resumeNote').textContent = '导入失败：' + (r.error || '格式不符'); return; }
   $('resumeNote').textContent = `已导入 · ${r.anchors} 个锚点 · ${r.numbers} 个可用数字`;
 };
 
-$('ask').onclick = async () => {
-  const q = $('q').value.trim();
+$('askBtn').onclick = async () => {
+  const q = $('askInput').value.trim();
   if (!q) { $('askNote').textContent = '先输入问题'; return; }
   $('askNote').textContent = '生成中…';
   const r = await window.copilot.ask(q);
@@ -54,8 +54,10 @@ $('ask').onclick = async () => {
   showPreview(r.card, null);
 };
 
+$('askInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('askBtn').click(); });
+
 $('mock').onclick = async () => {
-  const r = await window.copilot.mock($('q').value.trim() || '介绍一下你自己');
+  const r = await window.copilot.mock($('askInput').value.trim() || '介绍一下你自己');
   showPreview(r.card, null);
 };
 
@@ -215,3 +217,29 @@ $('reviewClear').onclick = async () => {
 window.copilot.onReviewRequest(() => { if ($('reviewRun')) $('reviewRun').click(); });
 setInterval(refreshReviewCount, 3000);
 refreshReviewCount();
+
+// ---------- 版本与侧栏状态 ----------
+(async () => {
+  try {
+    const res = await window.copilot.getConfig();
+    const cfg = (res && res.config) || res || {};
+    const appVer = (res && res.version) || (cfg && cfg.version);
+    if (appVer && $('ver')) $('ver').textContent = 'v' + appVer;
+    const on = !!(cfg.llm && cfg.llm.apiKey);
+    if ($('sideDot')) $('sideDot').className = 'dot' + (on ? ' on' : '');
+    if ($('sideStatus')) $('sideStatus').textContent = on ? '已连接模型' : '未配置 Key';
+  } catch (_) { /* 主进程未就绪 */ }
+})();
+
+// 侧栏高亮跟随滚动
+const navItems = Array.from(document.querySelectorAll('.nav-item'));
+const sections = navItems.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+const main = document.querySelector('.main');
+if (main && sections.length) {
+  main.addEventListener('scroll', () => {
+    const top = main.scrollTop + 40;
+    let idx = 0;
+    sections.forEach((sec, i) => { if (sec.offsetTop <= top) idx = i; });
+    navItems.forEach((a, i) => a.classList.toggle('active', i === idx));
+  }, { passive: true });
+}

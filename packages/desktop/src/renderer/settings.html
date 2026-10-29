@@ -2,118 +2,226 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws: http: https:" />
 <title>面必过 · 设置与演练</title>
 <link rel="stylesheet" href="settings.css" />
 </head>
 <body>
-<div class="wrap">
-  <h1>面必过 <span class="ver">v0.1.0 · M0</span></h1>
-  <p class="lead">只给关键词与大纲，不给成稿。内容锚定你的简历，由你用自己的话组织回答。</p>
+<div class="shell">
+  <!-- 侧栏：品牌 + 分区导航 -->
+  <aside class="side">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 16 16" width="15" height="15">
+          <path d="M2 8.5l3.2 3.2L14 4.5" fill="none" stroke="currentColor"
+                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-name">面必过</div>
+        <div class="brand-sub">job_bingo <span class="ver" id="ver"></span></div>
+      </div>
+    </div>
 
-  <section>
-    <h2>1 · 模型接口</h2>
-    <div class="grid">
-      <label>Base URL<input id="baseUrl" placeholder="https://api.openai.com/v1" /></label>
-      <label>模型<input id="model" placeholder="gpt-4o-mini" /></label>
-      <label class="full">API Key<input id="apiKey" type="password" placeholder="留空则进入演示模式" /></label>
-    </div>
-    <div class="row">
-      <button id="save">保存</button>
-      <button id="warmup" class="ghost">预热缓存</button>
-      <span class="note" id="llmNote"></span>
-    </div>
-  </section>
+    <nav class="nav">
+      <a class="nav-item active" href="#s-model"><i>1</i>模型与语音</a>
+      <a class="nav-item" href="#s-resume"><i>2</i>简历与岗位</a>
+      <a class="nav-item" href="#s-ask"><i>3</i>演练</a>
+      <a class="nav-item" href="#s-overlay"><i>4</i>浮窗与采集</a>
+      <a class="nav-item" href="#s-review"><i>5</i>复盘</a>
+      <a class="nav-item" href="#s-bound"><i>6</i>边界</a>
+    </nav>
 
-  <section>
-    <h2>2 · 简历锚点</h2>
-    <div class="row">
-      <button id="loadResume">导入魔方简历 JSON</button>
-      <span class="note" id="resumeNote">未导入</span>
+    <div class="side-foot">
+      <div class="status-line"><span class="dot" id="sideDot"></span><span id="sideStatus">待机</span></div>
     </div>
-    <label class="full">目标岗位 JD（可选，写进稳定前缀参与缓存）<textarea id="jd" rows="3" placeholder="粘贴 JD，模型会据此调整要点倾向"></textarea></label>
-  </section>
+  </aside>
 
-  <section>
-    <h2>3 · 演练</h2>
-    <div class="row">
-      <input id="q" class="grow" placeholder="输入面试官的问题，例如：说说你处理过最复杂的库存异常" />
-      <button id="ask" class="primary">生成思路卡</button>
-      <button id="mock" class="ghost">演示卡</button>
-    </div>
-    <div class="row">
-      <span class="note" id="askNote"></span>
-    </div>
-    <div id="preview" class="preview" hidden></div>
-    <div class="stats">
-      <span>繁忙退避：</span>
-      <span>每 <input id="retryMin" class="mini" type="number" min="1" max="60" value="5" /> 分钟重试</span>
-      <span>最多等 <input id="maxMin" class="mini" type="number" min="1" max="600" value="60" /> 分钟</span>
-      <button id="busyStop" class="ghost small">停止等待</button>
-      <span class="note" id="busyNote"></span>
-    </div>
-    <div class="stats">
-      <span>流水线：</span>
-      <span id="pIngest">—</span>
-      <span id="pDup">—</span>
-      <span id="pGen">—</span>
-      <button id="pReset" class="ghost small">重置上下文</button>
-    </div>
-  </section>
+  <!-- 主区 -->
+  <main class="main">
+    <header class="page-head">
+      <h1>设置与演练</h1>
+      <p class="lead">填好模型与简历，剩下的交给浮窗。所有数据只留在本机。</p>
+    </header>
 
-  <section>
-    <h2>4 · 浮窗</h2>
-    <div class="grid">
-      <label>不透明度 <span id="opVal"></span><input id="opacity" type="range" min="35" max="100" step="1" /></label>
-      <label class="cb"><input id="through" type="checkbox" /> 鼠标穿透（浮窗不挡操作）</label>
-      <label class="cb"><input id="taskbar" type="checkbox" /> 在任务栏显示（找不到窗口时打开它）</label>
-      <label class="cb"><input id="solid" type="checkbox" /> 兼容模式（VNC/远程下浮窗不显示时勾选）</label>
-    </div>
-    <div class="row">
-      <span class="note" id="taskbarNote"></span>
-    </div>
-    <div class="row">
-      <button id="toggle" class="ghost">显示 / 隐藏浮窗</button>
-      <button id="mockRun" class="primary">开始模拟采集</button>
-      <button id="mockStop" class="ghost">停止</button>
-      <span class="note">模拟采集会每 9 秒自动提一个面试问题并出卡</span>
-    </div>
-    <div class="row">
-      <button id="capStart" class="primary">开始采集系统声音</button>
-      <button id="capStop" class="ghost">停止</button>
-      <span class="note" id="capNote">未开始（Windows 回环，只听声音不采画面）</span>
-    </div>
-    <div class="row">
-      <button id="demoWav" class="ghost">喂入测试音频（完整链路）</button>
-      <button id="feedWav" class="ghost">选择 WAV 文件</button>
-      <span class="note" id="asrNote">ASR 层：检测中</span>
-    </div>
-  </section>
+    <section id="s-model" class="card">
+      <div class="card-head">
+        <h2>模型与语音</h2>
+        <span class="hint">任何 OpenAI 兼容端点都能用</span>
+      </div>
+      <div class="grid">
+        <label class="field full">
+          <span>Base URL</span>
+          <input id="baseUrl" type="text" placeholder="https://api.deepseek.com/v1" spellcheck="false" />
+        </label>
+        <label class="field">
+          <span>模型</span>
+          <input id="model" type="text" placeholder="deepseek-chat" spellcheck="false" />
+        </label>
+        <label class="field">
+          <span>API Key</span>
+          <input id="apiKey" type="password" placeholder="sk-..." spellcheck="false" />
+        </label>
+      </div>
+      <details class="adv">
+        <summary>语音识别（可选，留空则复用上面的地址与 Key）</summary>
+        <div class="grid">
+          <label class="field full">
+            <span>ASR Base URL</span>
+            <input id="asrBaseUrl" type="text" placeholder="https://api.siliconflow.cn/v1" spellcheck="false" />
+          </label>
+          <label class="field">
+            <span>ASR 模型</span>
+            <input id="asrModel" type="text" placeholder="FunAudioLLM/SenseVoiceSmall" spellcheck="false" />
+          </label>
+          <label class="field">
+            <span>ASR Key</span>
+            <input id="asrKey" type="password" placeholder="留空则用上面的 Key" spellcheck="false" />
+          </label>
+        </div>
+      </details>
+      <div class="actions">
+        <button id="save" class="primary">保存</button>
+        <button id="warmup" class="ghost">预热缓存</button>
+        <span class="note" id="saveNote"></span>
+      </div>
+    </section>
 
-  <section>
-    <h2>5 · 复盘</h2>
-    <div class="row">
-      <button id="reviewRun" class="primary">生成复盘</button>
-      <button id="reviewFolder" class="ghost">打开复盘目录</button>
-      <button id="reviewClear" class="ghost">清空本场记录</button>
-      <span class="note" id="reviewNote">尚未记录</span>
-    </div>
-    <div class="row note">
-      复盘只做点评，不给答案：每条都带原文引述，数字必须能在记录或简历里找到。
-      未配置模型时用本地规则给结论（字数 / 数字密度），不会给你一张空白页。
-    </div>
-    <pre id="reviewOut" class="review-out" hidden></pre>
-  </section>
+    <section id="s-resume" class="card">
+      <div class="card-head">
+        <h2>简历与岗位</h2>
+        <span class="hint">要点里的数字必须能在简历中找到</span>
+      </div>
+      <div class="actions">
+        <button id="importResume" class="primary">导入简历 JSON</button>
+        <span class="note" id="resumeNote">尚未导入</span>
+      </div>
+      <label class="field full">
+        <span>目标岗位 JD（可留空）</span>
+        <textarea id="jd" rows="4" placeholder="把岗位描述贴进来，思路卡会更贴近岗位要求"></textarea>
+      </label>
+    </section>
 
-  <section class="warn">
-    <h2>6 · 边界</h2>
-    <ul>
-      <li>本软件只输出要点：≤18 字、无句号、不以「我」开头 —— 由校验器强制，不靠模型自觉。</li>
-      <li>不做语音代答、不做隐蔽采集、不规避任何检测。</li>
-      <li>「复盘录制」模式下的内容保护仅用于防止草稿被录入复盘视频，默认关闭。</li>
-      <li>音频仅在你自己的设备上处理并转写；是否告知对方由你决定，软件不替你隐瞒。</li>
-    </ul>
-  </section>
+    <section id="s-ask" class="card">
+      <div class="card-head">
+        <h2>演练</h2>
+        <span class="hint">不出门也能试一遍完整链路</span>
+      </div>
+      <div class="ask-row">
+        <input id="askInput" type="text" placeholder="输入一个面试问题，比如：说说你处理过最复杂的一次系统故障" />
+        <button id="askBtn" class="primary">生成思路卡</button>
+      </div>
+      <div class="actions">
+        <button id="mockRun" class="ghost">模拟采集</button>
+        <button id="mockStop" class="ghost">停止</button>
+        <button id="mock" class="ghost">演示卡</button>
+        <button id="busyStop" class="ghost">停止等待模型</button>
+        <span class="note" id="askNote">模拟采集会每 9 秒自动提一个问题</span>
+      </div>
+      <div class="note" id="busyNote"></div>
+      <div class="preview" id="preview" hidden></div>
+    </section>
+
+    <section id="s-overlay" class="card">
+      <div class="card-head">
+        <h2>浮窗与采集</h2>
+        <span class="hint">只看声音，不采画面</span>
+      </div>
+
+      <div class="slider-row">
+        <span class="slider-label">不透明度</span>
+        <input id="opacity" type="range" min="35" max="100" step="1" />
+        <span class="slider-val" id="opVal"></span>
+      </div>
+
+      <div class="switch-grid">
+        <label class="switch"><input id="through" type="checkbox" /><span class="track"></span><span class="label">鼠标穿透</span></label>
+        <label class="switch"><input id="taskbar" type="checkbox" /><span class="track"></span><span class="label">在任务栏显示</span></label>
+        <label class="switch"><input id="solid" type="checkbox" /><span class="track"></span><span class="label">兼容模式</span></label>
+      </div>
+      <div class="note" id="taskbarNote"></div>
+
+      <div class="divider"></div>
+
+      <div class="actions">
+        <button id="capStart" class="primary">开始采集系统声音</button>
+        <button id="capStop" class="ghost">停止</button>
+      </div>
+      <div class="meter" id="capMeter">
+        <div class="meter-item"><span class="m-label">系统音频</span><b id="capFrames">0</b></div>
+        <div class="meter-item"><span class="m-label">麦克风</span><b id="capMic">0</b></div>
+        <div class="meter-item"><span class="m-label">语音段</span><b id="capSegs">0</b></div>
+        <div class="meter-item wide"><span class="m-label">当前判定</span><b id="capWho">等待语音…</b></div>
+      </div>
+      <div class="note" id="capNote">未开始（Windows 回环，只听声音不采画面）</div>
+
+      <div class="divider"></div>
+
+      <div class="actions">
+        <button id="demoWav" class="ghost">喂入测试音频</button>
+        <button id="feedWav" class="ghost">选择 WAV 文件</button>
+      </div>
+      <div class="note" id="asrNote">ASR 层：检测中</div>
+
+      <div class="divider"></div>
+
+      <div class="actions">
+        <button id="toggle" class="ghost">显示 / 隐藏浮窗</button>
+      </div>
+
+      <div class="divider"></div>
+      <div class="stats-row">
+        <span>本场统计</span>
+        <span id="pIngest">收到 0</span>
+        <span id="pDup">去重跳过 0</span>
+        <span id="pGen">出卡 0</span>
+        <button id="pReset" class="tiny">重置</button>
+      </div>
+
+      <details class="adv">
+        <summary>模型繁忙时的退避</summary>
+        <div class="grid">
+          <label class="field">
+            <span>重试间隔（分钟）</span>
+            <input id="retryMin" type="number" min="1" max="60" />
+          </label>
+          <label class="field">
+            <span>最长等待（分钟）</span>
+            <input id="maxMin" type="number" min="1" max="240" />
+          </label>
+        </div>
+      </details>
+    </section>
+
+    <section id="s-review" class="card">
+      <div class="card-head">
+        <h2>复盘</h2>
+        <span class="hint">只做点评，不给答案</span>
+      </div>
+      <div class="actions">
+        <button id="reviewRun" class="primary">生成复盘</button>
+        <button id="reviewFolder" class="ghost">打开复盘目录</button>
+        <button id="reviewClear" class="ghost">清空本场记录</button>
+        <span class="note" id="reviewNote">尚未记录</span>
+      </div>
+      <p class="note block">
+        每条点评都带原文引述，数字必须能在记录或简历里找到。未配置模型时用本地规则给结论（字数 / 数字密度），不会给你一张空白页。
+      </p>
+      <pre id="reviewOut" class="review-out" hidden></pre>
+    </section>
+
+    <section id="s-bound" class="card subtle">
+      <div class="card-head"><h2>边界</h2></div>
+      <ul class="bound-list">
+        <li>只输出要点：≤18 字、无句号、不以「我」开头 —— 由校验器强制，不靠模型自觉。</li>
+        <li>不做语音代答、不做隐蔽采集、不规避任何检测。</li>
+        <li>「复盘录制」下的内容保护仅用于防止草稿被录入复盘视频，默认关闭。</li>
+        <li>音频只在你自己的设备上处理并转写；是否告知对方由你决定，软件不替你隐瞒。</li>
+      </ul>
+    </section>
+  </main>
 </div>
+
 <script src="settings.js"></script>
 </body>
 </html>

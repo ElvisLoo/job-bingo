@@ -2,26 +2,48 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
-<title>系统声音采集</title>
-<style>
-  body { font: 13px/1.7 "Microsoft YaHei", system-ui, sans-serif; color: #cbd5e1; background: #0f1420; padding: 16px; }
-  .row { margin-bottom: 6px; }
-  .ok { color: #34d399; }
-  .err { color: #f87171; }
-  .dim { color: #64748b; }
-  code { background: #1b2233; padding: 1px 5px; border-radius: 4px; }
-</style>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws: http: https:" />
+<title>面必过 · 声音采集</title>
+<link rel="stylesheet" href="audio-capture.css" />
 </head>
 <body>
-  <div class="row">状态：<span id="state" class="dim">初始化…</span></div>
-  <div class="row">系统音频：<span id="tracks" class="dim">—</span></div>
-  <div class="row">麦克风：<span id="mic" class="dim">检测中…</span></div>
-  <div class="row">实时电平：<span id="level" class="dim">—</span></div>
-  <div class="row">当前判定：<span id="who" class="dim">等待语音…</span></div>
-  <div class="row">电平旁路：<span id="probe" class="dim">—</span></div>
-  <div class="row">采样率：<span id="rate" class="dim">—</span></div>
-  <div class="row">回环帧：<span id="frames" class="dim">0</span> · 麦克风帧：<span id="micFrames" class="dim">0</span></div>
-  <div class="row dim">本窗口只采集会议音频，<b>不采集画面</b>：视频轨在拿到流后立即停止。</div>
-  <script src="audio-capture.js"></script>
+<div class="app">
+  <header class="head">
+    <div class="title-block">
+      <div class="title">声音采集</div>
+      <div class="sub">只听声音，不采画面</div>
+    </div>
+    <div class="badge" id="stateWrap"><span class="led" id="led"></span><span id="state">初始化…</span></div>
+  </header>
+
+  <div class="tracks">
+    <div class="track">
+      <div class="t-head"><span class="t-name">系统音频</span><span class="t-val" id="tracks">—</span></div>
+      <div class="bars" id="barsLoop"></div>
+    </div>
+    <div class="track">
+      <div class="t-head"><span class="t-name">麦克风</span><span class="t-val" id="mic">检测中…</span></div>
+      <div class="bars" id="barsMic"></div>
+    </div>
+  </div>
+
+  <div class="who-panel" id="whoPanel">
+    <span class="who-label">当前判定</span>
+    <span class="who-value" id="who">等待语音…</span>
+  </div>
+
+  <div class="metrics">
+    <div class="m"><span class="m-k">采样率</span><span class="m-v" id="rate">—</span></div>
+    <div class="m"><span class="m-k">回环帧</span><span class="m-v" id="frames">0</span></div>
+    <div class="m"><span class="m-k">麦克风帧</span><span class="m-v" id="micFrames">0</span></div>
+  </div>
+
+  <div class="foot">
+    <span id="probe">电平旁路：—</span>
+    <span class="sep"></span>
+    <span>视频轨拿到即停 · 不落盘</span>
+  </div>
+</div>
+<script src="audio-capture.js"></script>
 </body>
 </html>

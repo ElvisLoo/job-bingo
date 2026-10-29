@@ -1,0 +1,106 @@
+/* ============================================================
+   面必过 · 声音采集窗口
+   这是一个「仪表盘」而不是日志：用条状电平 + 明暗状态，
+   让你在被会议画面挡住一半的情况下也能判断「到底有没有收到声音」。
+   ============================================================ */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #0b0f18;
+  color: #cbd5e1;
+  font: 13px/1.6 "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+.app { padding: 14px 16px 12px; }
+
+/* ---------- 头部 ---------- */
+.head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 13px; }
+.title { font-size: 14.5px; font-weight: 600; color: #e6ebf4; letter-spacing: .02em; }
+.sub { font-size: 11px; color: #4f5a6e; margin-top: 1px; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px; border-radius: 999px;
+  font-size: 11px; color: #8b96ab;
+  background: rgba(255, 255, 255, .05);
+  border: 1px solid rgba(255, 255, 255, .08);
+  white-space: nowrap;
+}
+.badge.ok { color: #86efac; background: rgba(52, 211, 153, .10); border-color: rgba(52, 211, 153, .28); }
+.badge.err { color: #fca5a5; background: rgba(248, 113, 113, .10); border-color: rgba(248, 113, 113, .28); }
+
+.led { width: 6px; height: 6px; border-radius: 50%; background: #4b5563; }
+.badge.ok .led { background: #34d399; box-shadow: 0 0 7px rgba(52, 211, 153, .8); animation: pulse 2s ease-in-out infinite; }
+.badge.err .led { background: #f87171; box-shadow: 0 0 7px rgba(248, 113, 113, .8); }
+@keyframes pulse { 50% { opacity: .45; } }
+
+/* ---------- 双轨 ---------- */
+.tracks { display: flex; flex-direction: column; gap: 9px; }
+.track {
+  background: #0e1521;
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: 9px;
+  padding: 8px 11px 9px;
+}
+.t-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.t-name { font-size: 11px; color: #7c879c; letter-spacing: .02em; }
+.t-val { font-size: 11px; color: #6b7789; }
+.t-val.ok { color: #86efac; }
+.t-val.err { color: #fca5a5; }
+
+/* 电平条：24 格，按能量点亮 */
+.bars { display: flex; gap: 2px; height: 14px; align-items: flex-end; }
+.bars i {
+  flex: 1; height: 100%;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, .055);
+  transition: background .08s;
+}
+.bars i.on { background: #3b82f6; }
+.bars i.on.hot { background: #fbbf24; }
+.bars i.on.clip { background: #f87171; }
+.bars.mic i.on { background: #22d3ee; }
+.bars.mic i.on.hot { background: #fbbf24; }
+.bars.mic i.on.clip { background: #f87171; }
+
+/* ---------- 判定面板 ---------- */
+.who-panel {
+  margin-top: 11px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .03);
+  border: 1px solid rgba(255, 255, 255, .06);
+  transition: background .2s, border-color .2s;
+}
+.who-panel.me { background: rgba(34, 211, 238, .07); border-color: rgba(34, 211, 238, .25); }
+.who-panel.them { background: rgba(52, 211, 153, .07); border-color: rgba(52, 211, 153, .25); }
+.who-label { font-size: 10.5px; color: #5f6b81; letter-spacing: .02em; flex: 0 0 auto; }
+.who-value { font-size: 12.5px; color: #9fb0c8; }
+.who-panel.me .who-value { color: #a5f3fc; }
+.who-panel.them .who-value { color: #a7f3d0; }
+
+/* ---------- 指标 ---------- */
+.metrics { display: flex; gap: 8px; margin-top: 10px; }
+.m {
+  flex: 1;
+  background: #0e1521;
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: 8px;
+  padding: 6px 9px;
+  display: flex; flex-direction: column; gap: 1px;
+}
+.m-k { font-size: 10px; color: #4f5a6e; }
+.m-v { font-size: 12px; color: #c3cddd; font-variant-numeric: tabular-nums; }
+
+/* ---------- 页脚 ---------- */
+.foot {
+  margin-top: 11px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 10.5px; color: #3f4a5e;
+}
+.sep { width: 1px; height: 9px; background: rgba(255, 255, 255, .08); }

@@ -392,7 +392,12 @@ ipcMain.handle('hint:mock', async (_e, q) => {
 
 ipcMain.handle('llm:warmup', async () => { await warmupNow(); return { ok: true }; });
 
-ipcMain.handle('config:get', () => ({ config, hasResume: !!resumeData }));
+ipcMain.handle('config:get', () => ({
+  config,
+  hasResume: !!resumeData,
+  // 设置页左下角显示版本号；用 app.getVersion() 取的是打包后的真实版本
+  version: app.getVersion(),
+}));
 
 ipcMain.handle('config:set', (_e, patch) => {
   config = deepMerge(config, patch);
