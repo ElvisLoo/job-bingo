@@ -13,6 +13,7 @@ const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, sc
 const core = require('@job-bingo/core');
 const { Pipeline } = require('./pipeline');
 const { createTrayImage, createAppIcon } = require('./tray-icon');
+const credentials = require('./credentials');
 const { initAudioCapture, startCapture, stopCapture, captureStatus, selfTestCapture } = require('./audio-capture');
 
 // ---------- 单实例 ----------
@@ -57,8 +58,62 @@ try {
   console.warn('[config] 读取失败，使用默认值', e.message);
   config = DEFAULT_CONFIG;
 }
+/**
+ * 把配置里的 Key 抽出来单独加密存，config.json 只留空串。
+ * 首次运行时如果发现旧版留下的明文 Key，顺手迁移过去并清掉明文。
+ */
+let credentialState = { ok: true };
+
+function loadCredentialsIntoConfig() {
+  const loaded = credentials.loadSecrets(app.getPath('userData'));
+  if (loaded.ok && loaded.secrets) {
+    config.llm.apiKey = loaded.secrets.llmApiKey || config.llm.apiKey || '';
+    return;
+  }
+  // 解密失败（换机器/换用户）：保留旧值不动，让用户重新填
+  credentialState = { ok: false, reason: loaded.reason };
+  console.warn('[credentials]', loaded.reason);
+}
+
+function migratePlaintextKeys() {
+  // 旧版把 Key 明文写在 config.json 里，这里迁移到加密存储并抹掉明文
+  const plainLlm = config.llm && config.llm.apiKey;
+  const plainAsr = config.asr && config.asr.apiKey;
+  if (!plainLlm && !plainAsr) return { migrated: false };
+  const r = credentials.saveSecrets(app.getPath('userData'), {
+    llmApiKey: plainLlm, asrApiKey: plainAsr,
+  });
+  if (!r.ok) {
+    // 加密失败不能把明文删掉，否则用户 Key 就丢了
+    console.warn('[credentials] 迁移失败，保留明文：', r.reason);
+    return { migrated: false, reason: r.reason };
+  }
+  config.llm.apiKey = '';
+  if (config.asr) config.asr.apiKey = '';
+  saveConfig();
+  console.log('[credentials] 已把明文 Key 迁移到加密存储');
+  return { migrated: true };
+}
+
 function saveConfig() {
-  try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8'); } catch (e) { console.warn(e.message); }
+  try {
+    // 写盘前把 Key 摘出去：配置文件里绝不出现明文
+    const snap = JSON.parse(JSON.stringify(config));
+    const llmKey = snap.llm && snap.llm.apiKey;
+    const asrKey = snap.asr && snap.asr.apiKey;
+    if (snap.llm) snap.llm.apiKey = '';
+    if (snap.asr) snap.asr.apiKey = '';
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(snap, null, 2), 'utf8');
+    // Key 有变化就同步到加密存储
+    if (llmKey || asrKey) {
+      const r = credentials.saveSecrets(app.getPath('userData'), {
+        llmApiKey: llmKey || '', asrApiKey: asrKey || '',
+      });
+      if (!r.ok) console.warn('[credentials] 保存失败：', r.reason);
+    }
+  } catch (e) {
+    console.warn(e.message);
+  }
 }
 
 let resumeData = null;
@@ -426,12 +481,25 @@ ipcMain.handle('hint:mock', async (_e, q) => {
 
 ipcMain.handle('llm:warmup', async () => { await warmupNow(); return { ok: true }; });
 
-ipcMain.handle('config:get', () => ({
-  config,
-  hasResume: !!resumeData,
-  // 设置页左下角显示版本号；用 app.getVersion() 取的是打包后的真实版本
-  version: app.getVersion(),
-}));
+ipcMain.handle('config:get', () => {
+  // 不把 Key 明文回传给渲染层：设置页只需要知道「有没有配」，
+  // 明文出现在渲染进程里就多了一处可被读取/截屏/记录的副本。
+  const snap = JSON.parse(JSON.stringify(config));
+  const hasLlmKey = !!(snap.llm && snap.llm.apiKey);
+  const hasAsrKey = !!(snap.asr && snap.asr.apiKey);
+  if (snap.llm) snap.llm.apiKey = '';
+  if (snap.asr) snap.asr.apiKey = '';
+  return {
+    config: snap,
+    hasLlmKey,
+    hasAsrKey,
+    hasResume: !!resumeData,
+    credentialsOk: credentialState.ok,
+    credentialsReason: credentialState.ok ? '' : credentialState.reason,
+    // 设置页左下角显示版本号；用 app.getVersion() 取的是打包后的真实版本
+    version: app.getVersion(),
+  };
+});
 
 /**
  * 配置净化：任何来自渲染层的 patch 都必须先过这里。
@@ -484,6 +552,9 @@ ipcMain.handle('config:set', (_e, patch) => {
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
     return { ok: false, error: '配置格式不正确' };
   }
+  // 设置页拿不到明文 Key，保存时也不会回传，所以空串要理解为「不修改」
+  if (patch.llm && patch.llm.apiKey === '') delete patch.llm.apiKey;
+  if (patch.asr && patch.asr.apiKey === '') delete patch.asr.apiKey;
   const before = config;
   config = sanitizeConfig(deepMerge(config, patch));
   saveConfig();
@@ -651,6 +722,15 @@ app.whenReady().then(() => {
   // 去掉 Electron 默认的英文菜单栏（File/Edit/View...），
   // 全部功能已由托盘菜单与热键覆盖，顶栏留着只会显得没汉化。
   Menu.setApplicationMenu(null);
+
+  // 凭据处理必须在 whenReady 之后：safeStorage 依赖系统凭据服务。
+  // 顺序不能反：先迁移动旧明文，再把加密后的 Key 读回来。
+  try {
+    migratePlaintextKeys();
+    loadCredentialsIntoConfig();
+  } catch (e) {
+    console.warn('[credentials] 初始化失败', e.message);
+  }
 
   // 采集窗口的授权与数据回传（独立 partition，不污染默认会话）
   initAudioCapture({

@@ -1,11 +1,17 @@
 'use strict';
 const $ = (id) => document.getElementById(id);
 
+// 主进程不再回传明文 Key，这里只用 hasLlmKey 表示「有没有配」
+let hasKey = false;
+
 async function load() {
-  const { config, hasResume } = await window.copilot.getConfig();
+  const { config, hasResume, hasLlmKey, credentialsOk, credentialsReason } = await window.copilot.getConfig();
+  hasKey = !!hasLlmKey;
   $('baseUrl').value = config.llm.baseUrl || '';
   $('model').value = config.llm.model || '';
-  $('apiKey').value = config.llm.apiKey || '';
+  // 不回填明文：留空表示「保持原值」，用户要换就重新输入
+  $('apiKey').value = '';
+  $('apiKey').placeholder = hasKey ? '已配置（留空则不修改）' : 'sk-...';
   $('jd').value = config.jd || '';
   $('opacity').value = Math.round((config.overlay.opacity ?? 0.94) * 100);
   $('opVal').textContent = `${Math.round((config.overlay.opacity ?? 0.94) * 100)}%`;
@@ -16,15 +22,29 @@ async function load() {
   $('retryMin').value = config.busy?.retryMinutes ?? 5;
   $('maxMin').value = config.busy?.maxWaitMinutes ?? 60;
   $('resumeNote').textContent = hasResume ? '已导入（锚点可校验）' : '未导入';
-  $('saveNote').textContent = config.llm.apiKey ? '已配置 Key' : '未配置 Key · 演示模式';
+  if (credentialsOk === false) {
+    // 换了机器或系统用户时密文解不开，必须说清楚，否则用户以为 Key 丢了
+    $('saveNote').textContent = '凭据读取失败，请重新填写 Key（' + (credentialsReason || '未知原因').slice(0, 60) + '）';
+  } else {
+    $('saveNote').textContent = hasKey ? '已配置 Key（加密存储）' : '未配置 Key · 演示模式';
+  }
 }
 
 $('save').onclick = async () => {
-  await window.copilot.setConfig({
-    llm: { baseUrl: $('baseUrl').value.trim(), model: $('model').value.trim(), apiKey: $('apiKey').value.trim() },
+  const typed = $('apiKey').value.trim();
+  const patch = {
+    llm: { baseUrl: $('baseUrl').value.trim(), model: $('model').value.trim() },
     jd: $('jd').value,
-  });
-  $('saveNote').textContent = $('apiKey').value.trim() ? '已保存 · Key 已配置' : '已保存 · 演示模式';
+  };
+  // 只有真的输入了新 Key 才覆盖；留空表示沿用已加密保存的那个
+  if (typed) patch.llm.apiKey = typed;
+  const r = await window.copilot.setConfig(patch);
+  if (typed) hasKey = true;
+  $('apiKey').value = '';
+  $('apiKey').placeholder = hasKey ? '已配置（留空则不修改）' : 'sk-...';
+  $('saveNote').textContent = (r && r.ok === false)
+    ? '保存失败：' + (r.error || '未知')
+    : (hasKey ? '已保存 · Key 已加密存储' : '已保存 · 演示模式');
 };
 
 $('warmup').onclick = async () => {
@@ -239,7 +259,7 @@ refreshReviewCount();
     const cfg = (res && res.config) || res || {};
     const appVer = (res && res.version) || (cfg && cfg.version);
     if (appVer && $('ver')) $('ver').textContent = 'v' + appVer;
-    const on = !!(cfg.llm && cfg.llm.apiKey);
+    const on = !!(res && res.hasLlmKey);
     if ($('sideDot')) $('sideDot').className = 'dot' + (on ? ' on' : '');
     if ($('sideStatus')) $('sideStatus').textContent = on ? '已连接模型' : '未配置 Key';
   } catch (_) { /* 主进程未就绪 */ }

@@ -130,6 +130,57 @@ async function openMic() {
   }
 }
 
+/**
+ * 断流自愈。
+ *
+ * 面试中途切耳机、对方停止共享、系统睡眠唤醒，都会让音频轨 ended/muted。
+ * 原来只显示一行小字，用户正在答题根本注意不到 —— 表现为「后半场一句话都不出卡」。
+ *
+ * 策略：先自动重建一次（有限次、递增延时），失败才明确告知。
+ * 不无限重试：设备真的拔了，重试 100 次也没用，反而刷屏。
+ */
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+const MAX_RECONNECT = 3;
+
+function scheduleReconnect(reason) {
+  if (reconnectTimer) return;
+  if (reconnectAttempts >= MAX_RECONNECT) {
+    setText('state', '采集多次重连失败，请手动点「停止」再「开始」', 'err');
+    report({ level: 'error', message: 'capture reconnect exhausted: ' + reason });
+    return;
+  }
+  reconnectAttempts++;
+  const delay = 800 * reconnectAttempts;   // 800 / 1600 / 2400ms
+  setText('state', `音频中断，${Math.round(delay / 1000 * 10) / 10}s 后重连（${reconnectAttempts}/${MAX_RECONNECT}）`, 'err');
+  report({ level: 'info', message: `reconnect ${reconnectAttempts} in ${delay}ms: ${reason}` });
+
+  reconnectTimer = setTimeout(async () => {
+    reconnectTimer = null;
+    try {
+      await teardownAudio();
+      await start();
+      reconnectAttempts = 0;   // 成功即清零
+      report({ level: 'info', message: 'capture reconnected' });
+    } catch (e) {
+      scheduleReconnect(String(e && e.message || e));
+    }
+  }, delay);
+}
+
+/** 只拆音频资源，不动窗口与探针定时器之外的逻辑 */
+async function teardownAudio() {
+  try {
+    if (probeTimer) { clearInterval(probeTimer); probeTimer = null; }
+    if (node) { node.port.close(); node.disconnect(); node = null; }
+    if (micNode) { micNode.port.close(); micNode.disconnect(); micNode = null; }
+    if (stream) { for (const t of stream.getTracks()) t.stop(); stream = null; }
+    if (micStream) { for (const t of micStream.getTracks()) t.stop(); micStream = null; }
+    if (ctx) { await ctx.close().catch(() => {}); ctx = null; }
+    micOn = false;
+  } catch (_) { /* 清理失败也要继续重连 */ }
+}
+
 async function start() {
   try {
     setText('state', '正在初始化采集桥…', '');
@@ -198,8 +249,32 @@ async function start() {
       micNode.connect(mute); // 同样静音，不能把自己的声音再放出来（否则形成啸叫）
       mic.getAudioTracks()[0].addEventListener('ended', () => {
         micOn = false;
-        setText('mic', '麦克风已断开 · 退化为单轨', 'err');
+        setText('mic', '麦克风已断开，正在重连…', 'err');
         report({ level: 'error', scope: 'mic', message: 'mic track ended' });
+        // 麦克风单独断开不必重连整条链路：重新拉一次麦即可，
+        // 整体重连会让回环也断一下，丢一段对方的声音。
+        setTimeout(async () => {
+          try {
+            const fresh = await openMic();
+            if (fresh && fresh.getAudioTracks().length && ctx) {
+              const src = ctx.createMediaStreamSource(fresh);
+              micNode = new AudioWorkletNode(ctx, 'pcm-worklet');
+              micNode.port.onmessage = (e) => {
+                micFrames++;
+                if (micFrames % 10 === 0) setText('micFrames', String(micFrames), '');
+                const pcm = new Float32Array(e.data);
+                latestMicRms = rmsOf(pcm);
+                window.capture.sendPcm(pcm, 'mic');
+              };
+              const m = ctx.createGain();
+              m.gain.value = 0;
+              src.connect(micNode);
+              micNode.connect(m);
+              m.connect(ctx.destination);
+              setText('mic', '已重连', 'ok');
+            }
+          } catch (_) { /* openMic 内部已上报 */ }
+        }, 800);
       });
     }
 
@@ -209,10 +284,10 @@ async function start() {
     // 麦克风旁路接不上、回声门永远判 unknown —— 而且不报错，是最难查的一类静默失败。
     startLevelProbe();
 
-    // 音频轨可能在中途结束（对方关闭共享/设备变化），这里给出明确提示
+    // 音频轨中途结束（对方停止共享 / 切换输出设备 / 睡眠唤醒）：自动重连
     audioTracks[0].addEventListener('ended', () => {
-      setText('state', '音频轨已结束（设备或会话变化）', 'err');
-      report({ level: 'error', message: 'audio track ended' });
+      setText('tracks', '已断开', 'err');
+      scheduleReconnect('audio track ended');
     });
     audioTracks[0].addEventListener('mute', () => {
       setText('tracks', `${audioTracks.length} 条（已静音/无信号）`, 'err');
