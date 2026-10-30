@@ -1,6 +1,6 @@
 {
   "name": "@job-bingo/asr",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "面必过 ASR 包：VAD 分段 / WAV 封装 / 语种路由 / 云+离线转写引擎（纯 CommonJS，无 Electron 依赖）",
   "main": "src/index.js",
