@@ -4,9 +4,34 @@ const $ = (id) => document.getElementById(id);
 // 主进程不再回传明文 Key，这里只用 hasLlmKey 表示「有没有配」
 let hasKey = false;
 
+// 热键状态渲染。res.shortcuts 可能不存在（连的是旧版主进程），
+// 那时候一律当作"全部正常"，不弹告警。
+function renderShortcuts(sc) {
+  const box = $('hotkeyWarn');
+  if (!box) return;
+  const failed = (sc && Array.isArray(sc.failed)) ? sc.failed : [];
+  if (!failed.length) { box.hidden = true; return; }
+  const list = $('hwList');
+  // 用 textContent 拼，不用 innerHTML —— 加速键来自配置，不该被当成 HTML 解析
+  const detail = failed.map((f) => `${f.accel}（${f.desc}）`).join('、');
+  list.textContent = `${detail} —— 可先用托盘右键菜单的对应项，或关掉占用它的软件后点右侧按钮。`;
+  box.hidden = false;
+}
+
 async function load() {
-  const { config, hasResume, hasLlmKey, credentialsOk, credentialsReason } = await window.copilot.getConfig();
+  const res = await window.copilot.getConfig();
+  if (!res) { $('saveNote').textContent = '读取配置失败'; return; }
+  // 老配置可能缺字段（例如早期版本没有 asr/overlay），
+  // 直接访问 config.llm.baseUrl 会抛 TypeError，整个设置页就白屏了。
+  const config = {
+    llm: {}, overlay: {}, busy: {}, ...(res.config || {}),
+  };
+  config.llm = config.llm || {};
+  config.overlay = config.overlay || {};
+  config.busy = config.busy || {};
+  const { hasResume, hasLlmKey, credentialsOk, credentialsReason } = res;
   hasKey = !!hasLlmKey;
+  renderShortcuts(res.shortcuts);
   $('baseUrl').value = config.llm.baseUrl || '';
   $('model').value = config.llm.model || '';
   // 不回填明文：留空表示「保持原值」，用户要换就重新输入
@@ -361,3 +386,31 @@ if ($('sessEnd')) {
 
 setInterval(refreshSessions, 5000);
 refreshSessions();
+
+// 重试注册：用户关掉占用热键的软件后，不必重启面必过。
+if ($('hwRetry')) {
+  $('hwRetry').onclick = async () => {
+    const btn = $('hwRetry');
+    btn.disabled = true;
+    const old = btn.textContent;
+    btn.textContent = '注册中…';
+    try {
+      const r = await window.copilot.shortcutsRetry();
+      renderShortcuts(r && r.shortcuts);
+      // 成功时告警条会被隐藏，用户看不到任何反馈会怀疑没点动。
+      // 这里就地给一句确认，1.5 秒后恢复按钮文案（按钮本身不藏着）。
+      if (r && r.ok) {
+        const box = $('hotkeyWarn');
+        box.hidden = false;
+        box.classList.add('ok');
+        $('hwList').textContent = '全部快捷键已重新注册成功，可以正常使用了。';
+        setTimeout(() => { box.hidden = true; box.classList.remove('ok'); }, 2200);
+      }
+    } catch (e) {
+      $('hwList').textContent = '重试失败：' + (e && e.message ? e.message : String(e));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = old;
+    }
+  };
+}

@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "node tools/start.js",
     "start": "node tools/start.js",
-    "test": "node --test \"packages/core/test/*.test.js\" \"packages/asr/**/*.test.js\" \"tools/test/pipeline-test.js\" \"tools/test/asr-pipeline-test.js\" \"tools/test/busy-retry-test.js\" \"tools/test/ws-auth-test.js\" \"tools/test/config-sanitize-test.js\" \"tools/test/credentials-test.js\"",
+    "test": "node --test \"packages/core/test/*.test.js\" \"packages/asr/**/*.test.js\" \"tools/test/pipeline-test.js\" \"tools/test/asr-pipeline-test.js\" \"tools/test/busy-retry-test.js\" \"tools/test/ws-auth-test.js\" \"tools/test/config-sanitize-test.js\" \"tools/test/credentials-test.js\" \"tools/test/shortcut-test.js\"",
     "test:core": "node --test \"packages/core/test/*.test.js\"",
     "test:asr": "node --test \"packages/asr/**/*.test.js\"",
     "e2e": "node tools/test/e2e-test.js",

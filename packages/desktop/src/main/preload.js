@@ -40,4 +40,6 @@ contextBridge.exposeInMainWorld('copilot', {
   sessionRemove: (id) => ipcRenderer.invoke('session:remove', id),
   sessionEntries: (id) => ipcRenderer.invoke('session:entries', id),
   sessionSaveErrors: () => ipcRenderer.invoke('session:saveErrors'),
+  // ---- 热键 ----
+  shortcutsRetry: () => ipcRenderer.invoke('shortcuts:retry'),
 });

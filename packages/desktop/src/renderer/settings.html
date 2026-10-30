@@ -44,6 +44,15 @@
       <p class="lead">填好模型与简历，剩下的交给浮窗。所有数据只留在本机。</p>
     </header>
 
+    <!-- 热键告警条：只有注册失败时才显示，正常时完全不占版面 -->
+    <div id="hotkeyWarn" class="hotkey-warn" hidden>
+      <div class="hw-main">
+        <strong>部分快捷键被其它软件占用</strong>
+        <p id="hwList"></p>
+      </div>
+      <button id="hwRetry" class="ghost sm">重新注册</button>
+    </div>
+
     <section id="s-model" class="card">
       <div class="card-head">
         <h2>模型与语音</h2>

@@ -232,11 +232,16 @@ function createTray() {
   tray.on('click', () => toggleOverlay());
 }
 
+// 热键失效时在菜单项前加 ⚠，让"为什么按了没反应"一眼可见。
+function shortcutLabel(accel) {
+  return shortcutFailures.some((f) => f.accel === accel) ? '⚠ ' : '';
+}
+
 function refreshTrayMenu() {
   if (!tray) return;
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: '显示 / 隐藏浮窗  (Ctrl+Alt+H)', click: () => toggleOverlay() },
-    { label: `鼠标穿透：${mouseThrough ? '开' : '关'}  (Ctrl+Alt+M)`, click: () => toggleMouse() },
+    { label: `${shortcutLabel('Ctrl+Alt+H')}显示 / 隐藏浮窗  (Ctrl+Alt+H)`, click: () => toggleOverlay() },
+    { label: `${shortcutLabel('Ctrl+Alt+M')}鼠标穿透：${mouseThrough ? '开' : '关'}  (Ctrl+Alt+M)`, click: () => toggleMouse() },
     { type: 'separator' },
     { label: '开始采集系统声音', click: async () => { startCapture(); pushCard({ type: 'status', text: '正在采集系统声音（只听声音，不采画面）' }); } },
     { label: '停止采集', click: () => { stopCapture(); pushCard({ type: 'status', text: '已停止采集' }); } },
@@ -271,23 +276,81 @@ function toggleProtect() {
   applyContentProtection();
   refreshTrayMenu();
   if (settings && !settings.isDestroyed()) settings.webContents.send('config', config);
+  if (tray) {
+    try { tray.setToolTip(`面必过${shortcutFailures.length ? ' · 部分热键失效' : ''}`); } catch (_) {}
+  }
 }
 
 // ---------- 热键 ----------
+// 热键清单：集中定义，方便注册时统一检查结果、也方便设置页展示。
+// 顺序即优先级 —— 前面失败不影响后面的（比如 Alt+K 被占用，H 仍然能用）。
+const SHORTCUTS = [
+  { accel: 'Ctrl+Alt+H', desc: '显示/隐藏浮窗', run: () => toggleOverlay() },
+  { accel: 'Ctrl+Alt+M', desc: '鼠标穿透开关', run: () => toggleMouse() },
+  { accel: 'Ctrl+Alt+K', desc: '打开设置', run: () => createSettings() },
+  { accel: 'Ctrl+Alt+Up', desc: '调高透明度', run: () => nudgeOpacity(+0.05) },
+  { accel: 'Ctrl+Alt+Down', desc: '调低透明度', run: () => nudgeOpacity(-0.05) },
+];
+
+// 注册失败的加速键。为空的含义就是"全部正常"，界面据此决定要不要提示。
+const shortcutFailures = [];
+
 function registerShortcuts() {
-  globalShortcut.register('Ctrl+Alt+H', () => toggleOverlay());
-  globalShortcut.register('Ctrl+Alt+M', () => toggleMouse());
-  globalShortcut.register('Ctrl+Alt+K', () => createSettings());
-  globalShortcut.register('Ctrl+Alt+Up', () => setOpacity(Math.min(1, config.overlay.opacity + 0.05)));
-  globalShortcut.register('Ctrl+Alt+Down', () => setOpacity(Math.max(0.35, config.overlay.opacity - 0.05)));
+  shortcutFailures.length = 0;
+  for (const item of SHORTCUTS) {
+    let ok = false;
+    try {
+      // register 返回 false 表示被别的程序抢占了，不是抛异常。
+      ok = globalShortcut.register(item.accel, item.run);
+    } catch (err) {
+      // 少数情况下（加速键写法非法）会抛错，同样算失败。
+      log.error('[shortcut] register threw', item.accel, err && err.message);
+      ok = false;
+    }
+    if (!ok) {
+      shortcutFailures.push({ accel: item.accel, desc: item.desc });
+      log.warn('[shortcut] 注册失败，可能被其它软件占用:', item.accel, item.desc);
+    }
+  }
+  if (shortcutFailures.length) {
+    const names = shortcutFailures.map((f) => `${f.accel}(${f.desc})`).join('、');
+    log.warn('[shortcut] 失败项:', names);
+  }
+  return shortcutFailures;
+}
+
+// 给设置页 / 托盘用：不暴露一堆内部结构，只给能直接显示的东西。
+function shortcutStatus() {
+  return {
+    total: SHORTCUTS.length,
+    failed: shortcutFailures.map((f) => ({ ...f })),
+    list: SHORTCUTS.map((s) => ({
+      accel: s.accel,
+      desc: s.desc,
+      ok: !shortcutFailures.some((f) => f.accel === s.accel),
+    })),
+  };
+}
+
+// 透明度微调。config 是磁盘上的 JSON，理论上可能被手改成字符串，
+// 直接 +0.05 会变成字符串拼接（"0.8" + 0.05 => "0.80.05"），再 Math.round 就是 NaN。
+function nudgeOpacity(delta) {
+  const cur = Number(config.overlay && config.overlay.opacity);
+  const base = Number.isFinite(cur) ? cur : 0.8;
+  setOpacity(base + delta);
 }
 
 function setOpacity(v) {
-  config.overlay.opacity = Math.round(v * 100) / 100;
+  const n = Number(v);
+  // 兜底：宁可不动，也不要把 NaN 写进配置（写进去之后浮窗会直接透明到看不见）。
+  const safe = Number.isFinite(n) ? Math.min(1, Math.max(0.35, n)) : 0.8;
+  config.overlay.opacity = Math.round(safe * 100) / 100;
   saveConfig();
-  if (overlay) {
+  if (overlay && !overlay.isDestroyed()) {
     overlay.setOpacity(config.overlay.opacity);
-    overlay.webContents.send('mode', { mouseThrough, opacity: config.overlay.opacity });
+    try {
+      overlay.webContents.send('mode', { mouseThrough, opacity: config.overlay.opacity });
+    } catch (_) { /* 窗口正在销毁 */ }
   }
 }
 
@@ -296,8 +359,15 @@ function setOpacity(v) {
 const wsClients = new Set();
 
 function pushCard(payload) {
-  if (overlay && !overlay.isDestroyed()) overlay.webContents.send('card', payload);
-  if (settings && !settings.isDestroyed()) settings.webContents.send('card', payload);
+  // 窗口正在销毁的瞬间，isDestroyed() 可能还是 false，
+  // 但 webContents.send 会抛 "Object has been destroyed"。
+  // 这个异常如果冒出去，会让出卡流程整体中断 —— 一张卡都出不来。
+  if (overlay && !overlay.isDestroyed()) {
+    try { overlay.webContents.send('card', payload); } catch (_) { /* 窗口正在销毁 */ }
+  }
+  if (settings && !settings.isDestroyed()) {
+    try { settings.webContents.send('card', payload); } catch (_) { /* 同上 */ }
+  }
   // 同步给手机端（投屏/第二屏）
   for (const ws of wsClients) {
     try { if (ws.readyState === 1) ws.send(JSON.stringify(payload)); } catch (_) { /* 连接已断 */ }
@@ -546,7 +616,16 @@ ipcMain.handle('config:get', () => {
     credentialsReason: credentialState.ok ? '' : credentialState.reason,
     // 设置页左下角显示版本号；用 app.getVersion() 取的是打包后的真实版本
     version: app.getVersion(),
+    shortcuts: shortcutStatus(),
   };
+});
+
+// 用户装完新软件、让出热键后，不必重启面必过 —— 设置页一键重试。
+ipcMain.handle('shortcuts:retry', () => {
+  try { globalShortcut.unregisterAll(); } catch (_) {}
+  registerShortcuts();
+  refreshTrayMenu();
+  return { ok: shortcutFailures.length === 0, shortcuts: shortcutStatus() };
 });
 
 /**
@@ -791,6 +870,19 @@ app.whenReady().then(() => {
   registerShortcuts();
   startWs();
 
+  // 热键被占用时必须说一声：否则用户按了没反应，会以为软件坏了。
+  // 只提示、不阻塞启动 —— 托盘菜单里仍有全部功能的等价入口。
+  if (shortcutFailures.length) {
+    const names = shortcutFailures.map((f) => `${f.accel} ${f.desc}`).join('；');
+    setTimeout(() => {
+      pushCard({
+        type: 'status',
+        text: `热键被其它软件占用：${names}。可从托盘右键菜单执行同样操作。`,
+        level: 'warn',
+      });
+    }, 1600);
+  }
+
   // 启动即进入「采集就绪」：用户唯一会忘记的一步就是点开始，忘了就等于没装。
   // 采集窗口本身可见且标注状态，不存在偷偷录音的情况。
   if (config.capture && config.capture.autoStart === false) {
@@ -819,6 +911,52 @@ app.whenReady().then(() => {
       pushCard({ type: 'card', card, question: '（演示）说说你处理过的一个难题' });
     }, 1200);
   }
+}).catch((e) => {
+  // 启动失败必须让用户看见：GUI 应用没有控制台，
+  // 不打对话框的话表现就是「双击毫无反应」。
+  reportFatal('startup', e);
+});
+
+// ---------- 异常兜底 ----------
+// 没有这块时，任何未捕获异常都会让主进程静默退出：
+// 用户看到的是「浮窗没了、托盘也没了」，却没有任何提示。
+// 这里至少做到：写日志 + 让用户知道发生了什么。
+let fatalNotified = false;
+
+function reportFatal(kind, err) {
+  const msg = String((err && err.stack) || err || '').slice(0, 1200);
+  console.error(`[fatal:${kind}]`, msg);
+  try {
+    fs.appendFileSync(path.join(app.getPath('userData'), 'fatal.log'),
+      `
+[${new Date().toISOString()}] ${kind}
+${msg}
+`, 'utf8');
+  } catch (_) { /* 日志写不进去也不能再抛 */ }
+
+  if (fatalNotified) return;   // 只提示一次，避免异常风暴刷屏
+  fatalNotified = true;
+  try {
+    const { dialog } = require('electron');
+    dialog.showErrorBox('面必过遇到内部错误',
+      `程序可能不稳定，建议重启。
+
+${String((err && err.message) || err).slice(0, 300)}
+
+`
+      + `详细日志：${path.join(app.getPath('userData'), 'fatal.log')}`);
+  } catch (_) { /* 对话框失败就算了，控制台已记录 */ }
+}
+
+process.on('uncaughtException', (e) => {
+  reportFatal('uncaughtException', e);
+  // 不退出：主进程状态可能已不干净，但直接退出用户更懵。
+  // 让用户自己决定要不要重启（浮窗仍在，可以继续用）。
+});
+
+process.on('unhandledRejection', (e) => {
+  // Promise 拒绝通常不致命（网络请求、异步 IPC），只记录不打扰
+  console.error('[unhandledRejection]', String((e && e.stack) || e).slice(0, 800));
 });
 
 app.on('will-quit', () => { globalShortcut.unregisterAll(); });
