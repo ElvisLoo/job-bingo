@@ -115,8 +115,36 @@ test('近层保留指定条数，其余进摘要', () => {
 test('摘要行数有上限，超出部分显式标注省略', () => {
   const entries = makeEntries(60); // 120 条
   const c = ctx.buildContext({ entries, question: 'q', recentTurns: 8, maxSummaryLines: 10 });
-  assert.ok(c.summaryLines.length <= 11, '含省略提示行');
-  assert.ok(c.summaryLines[0].includes('省略'), '应明确告诉模型有内容被省略');
+  assert.ok(c.summaryLines.length <= 11, `含省略提示行，实际 ${c.summaryLines.length}`);
+  assert.ok(c.summaryLines.some((l) => l.includes('省略')), '应明确告诉模型有内容被省略');
+});
+
+test('摘要保留开头：项目背景不会被后来的重复追问挤掉', () => {
+  // 真实场景：开场问项目，中间是几十轮同质化追问
+  const entries = [
+    { role: 'them', text: '先简单介绍一下你自己' },
+    { role: 'me', text: '五年后端，主要做电商订单系统' },
+    { role: 'them', text: '最有成就感的项目' },
+    { role: 'me', text: '订单履约系统，用 Kafka 削峰' },
+  ];
+  for (let i = 0; i < 40; i += 1) {
+    entries.push({ role: 'them', text: `扩展问题${i}：你怎么看团队协作` });
+    entries.push({ role: 'me', text: `协作关键在于对齐目标，第${i}次回答` });
+  }
+  const c = ctx.buildContext({ entries, question: 'q', maxSummaryLines: 12 });
+  const joined = c.summaryLines.join(' || ');
+  assert.ok(joined.includes('订单履约系统'), '开场的项目背景必须保留');
+  assert.ok(joined.includes('介绍一下你自己'), '自我介绍也要保留');
+});
+
+test('相邻高度重复的问答被去重', () => {
+  const entries = [];
+  for (let i = 0; i < 20; i += 1) {
+    entries.push({ role: 'them', text: '你还有什么问题问我吗' });
+    entries.push({ role: 'me', text: '暂时没有，谢谢' });
+  }
+  const c = ctx.buildContext({ entries, question: 'q', maxSummaryLines: 24 });
+  assert.ok(c.summaryLines.length <= 2, `重复问答应被压缩，实际 ${c.summaryLines.length} 行`);
 });
 
 test('短面试不产生摘要（没必要）', () => {

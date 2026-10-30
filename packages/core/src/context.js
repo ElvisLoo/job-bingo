@@ -195,13 +195,23 @@ function buildContext(opts = {}) {
   const older = body.slice(0, splitAt);
   const recent = body.slice(splitAt);
 
-  // 摘要只保留最近的部分行：一场 100 条的面试，早期内容全部压成骨架
-  let summaryLines = summarize(older);
+  // 摘要保留「头 + 尾」而不是只留尾部。
+  //
+  // 为什么：早期内容里最有价值的是面试开场那几句 ——
+  // "介绍一下你自己""说说你最有成就感的项目"。后面往往是一长串
+  // 重复度很高的追问（"你怎么看团队协作"问三十遍）。
+  // 只保留最近的 N 行，会把项目背景全部丢掉，只剩一堆同质化问答，
+  // 模型看着摘要却依然不知道你在讲哪个项目。
+  let summaryLines = dedupeLines(summarize(older));
   const droppedLines = Math.max(0, summaryLines.length - maxSummaryLines);
   if (droppedLines > 0) {
+    // 六成给开头（项目背景），四成给结尾（最近在聊什么）
+    const headCount = Math.max(1, Math.round(maxSummaryLines * 0.6));
+    const tailCount = Math.max(0, maxSummaryLines - headCount - 1);
     summaryLines = [
-      `（更早的 ${droppedLines} 组问答已省略）`,
-      ...summaryLines.slice(-maxSummaryLines),
+      ...summaryLines.slice(0, headCount),
+      `（中间省略 ${droppedLines} 组问答）`,
+      ...(tailCount > 0 ? summaryLines.slice(-tailCount) : []),
     ];
   }
 
@@ -232,6 +242,30 @@ function buildContext(opts = {}) {
   };
 }
 
+/**
+ * 摘要去重：连续高度相似的问答只留第一条。
+ *
+ * 真实面试里会出现「你还有什么问题问我」这类被反覆追问的短句，
+ * 三十组一模一样的问答既浪费 token，又把真正有信息量的项目背景挤出去。
+ * 只在相邻组之间比较（不全局去重）—— 隔了十轮再问同一件事，
+ * 本身就是"候选人在反复绕"的信号，值得保留。
+ */
+function dedupeLines(lines) {
+  const out = [];
+  let prevKey = '';
+  for (const line of lines) {
+    // 指纹 = 关键词集合 + 数字序列。
+    // 只取关键词会把「第0个问题…第1个问题…」当成同一句去重掉，
+    // 而那些编号往往正是区分不同轮次的关键。
+    const nums = (String(line).match(/\d+/g) || []).join(',');
+    const key = keywords(line).sort().join('|').slice(0, 200) + '#' + nums;
+    if (key && key === prevKey) continue;
+    out.push(line);
+    prevKey = key;
+  }
+  return out;
+}
+
 module.exports = {
   tokens,
   keywords,
@@ -239,4 +273,5 @@ module.exports = {
   summarize,
   findRelated,
   buildContext,
+  dedupeLines,
 };
