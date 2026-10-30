@@ -62,7 +62,7 @@ const checks = [
   ['只有一个 system 消息', roles.filter((r) => r === 'system').length === 1],
   ['system 在最前', roles[0] === 'system'],
   ['无相邻重复角色', dupIdx.length === 0],
-  ['提示词体积可控（<3000 字符）', all.length < 3000],
+  ['提示词体积可控（<2500 字符）', all.length < 2500],
   ['事故记录（MQ 堆积）也被带回', all.includes('MQ') || all.includes('堆积')],
 ];
 

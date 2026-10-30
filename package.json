@@ -1,6 +1,6 @@
 {
   "name": "job-bingo",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "面必过 — 实时思路提示（关键词 + 大纲），不代答",
   "workspaces": [
