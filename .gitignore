@@ -80,3 +80,6 @@ electron.log
 
 # 旧 Java 包路径（已迁至 com/jikegang/jobbingo）
 packages/mobile/android/app/src/main/java/com/elvisloo/
+
+# 打包/编辑过程的临时脚本，不进仓库
+*.tmp.js

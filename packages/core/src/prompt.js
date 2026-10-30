@@ -8,6 +8,8 @@
  * （借鉴 MeetingCopilot 的 prefix-cache 预热思路）
  */
 
+const context = require('./context');
+
 const SYSTEM_PROMPT = [
   '你是面试思路助手。你的唯一职责：帮候选人在面试现场快速组织回答。',
   '',
@@ -51,13 +53,60 @@ function buildStablePrefix(resumeMarkdown, jdText) {
 }
 
 /** 构造一次提问的完整 messages */
-function buildMessages({ prefix, question, history }) {
-  const messages = [{ role: 'system', content: prefix }];
+/**
+ * 构造一次提问的完整 messages。
+ *
+ * 上下文分三层（见 context.js）：
+ *   1. 近层原文 —— 最近几轮逐字保留，追问几乎都落在这里；
+ *   2. 早期摘要 —— 更早的问答压成「问｜答」骨架，让模型知道聊过什么；
+ *   3. 追问回溯 —— 当前问题与早期某话题高度相关时，把那几句原文捞回来。
+ *
+ * 只带最近 6 条时，面试官说「你刚才提到的那个项目」，模型完全无从得知
+ * 指代对象，只能编。这是长面试里最伤的一类错误。
+ */
+function buildMessages({ prefix, question, history, entries, contextOpts }) {
+  const messages = [];
 
-  // 最近几轮上下文，让「他刚才问了什么」影响当前要点
-  const turns = Array.isArray(history) ? history.slice(-6) : [];
-  for (const t of turns) {
-    // FIX: history 里混进 null / 字符串会让 t.role 抛 TypeError，整条流水线挂掉；空文本消息还会被部分网关判 400
+  const q = String(question ?? '').trim();
+  // entries 是本场完整记录；没传就退回 history，保持向后兼容
+  const pool = Array.isArray(entries) ? entries : (Array.isArray(history) ? history : []);
+  const ctx = context.buildContext({ entries: pool, question: q, ...(contextOpts || {}) });
+
+  // ---- 摘要层 + 追问回溯 ----
+  // 两段合并进同一条 system 消息，而不是各推一条：
+  // 多数 OpenAI 兼容网关只接受「开头一条 system」，中间再出现 system
+  // 会被判 400 或被悄悄丢掉 —— 那样回溯就白做了。
+  // 也不混进对话轮次，否则模型会把摘要当成自己说过的话去引用。
+  const sysBlocks = [];
+  if (ctx.summaryLines.length) {
+    sysBlocks.push(
+      '【本场面试此前的问答概要（已压缩，仅供判断已经聊过什么，不要复述给用户）】\n'
+      + ctx.summaryLines.join('\n')
+    );
+  }
+  if (ctx.related.length) {
+    const lines = ctx.related.map((e) => {
+      const who = e.role === 'them' ? '面试官' : '我';
+      return `- ${who}：${String(e.text || '').slice(0, 300)}`;
+    });
+    sysBlocks.push(
+      '【当前问题可能是在追问以下早前内容，请依据指代关系作答，不要重复已给过的要点】\n'
+      + lines.join('\n')
+    );
+  }
+  // 前缀（系统提示 + 简历 + JD）与上下文段合成一条 system。
+  // 拆成两条时严格网关只认第一条，第二段被丢掉 —— 表现为「偶尔追问失效」，
+  // 而且前缀命中 KV cache，从延迟上根本看不出来。
+  // 前缀（系统提示 + 简历 + JD）与上下文段合成一条 system。
+  // 拆成两条时严格网关只认第一条，第二段被丢掉 —— 表现为「偶尔追问失效」，
+  // 而且前缀命中 KV cache，从延迟上根本看不出来。
+  const NL = String.fromCharCode(10, 10);
+  const systemContent = [prefix].concat(sysBlocks).join(NL);
+  messages.push({ role: 'system', content: systemContent });
+  // ---- 近层原文：真正的对话轮次 ----
+  for (const t of ctx.recent) {
+    // history 里混进 null / 字符串会让 t.role 抛 TypeError，整条流水线挂掉；
+    // 空文本消息还会被部分网关判 400
     if (!t || typeof t !== 'object') continue;
     const text = String(t.text ?? '').trim();
     if (!text) continue;
@@ -67,7 +116,7 @@ function buildMessages({ prefix, question, history }) {
 
   messages.push({
     role: 'user',
-    content: `面试官刚才问：${String(question ?? '').trim()}\n\n请给出思路要点（JSON）。`,
+    content: `面试官刚才问：${q}\n\n请给出思路要点（JSON）。`,
   });
   return messages;
 }

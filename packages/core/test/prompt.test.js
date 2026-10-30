@@ -44,12 +44,47 @@ test('buildMessages：角色映射与截断', () => {
   assert.match(msgs[3].content, /说说最难的一次故障/);
 });
 
-test('buildMessages：history 只取最近 6 轮', () => {
+test('buildMessages：默认近层 8 条原文，更早的进摘要', () => {
   const history = Array.from({ length: 20 }, (_, i) => ({ role: 'them', text: `q${i}` }));
   const msgs = buildMessages({ prefix: 'P', question: '现在这个问题', history });
-  assert.strictEqual(msgs.length, 8); // system + 6 + 当前问题
-  assert.match(msgs[1].content, /q14/);
-  assert.match(msgs[6].content, /q19/);
+  // system(前缀+摘要) + 8 条近层 + 当前问题
+  assert.strictEqual(msgs.length, 10);
+  assert.match(msgs[0].content, /问答概要/, '更早的应压进同一条 system');
+  assert.match(msgs[0].content, /^P/, '前缀仍在最前，KV cache 不受影响');
+  assert.match(msgs[1].content, /q12/, '近层从第 12 条开始');
+  assert.match(msgs[8].content, /q19/);
+});
+
+test('buildMessages：可以调近层条数', () => {
+  const history = Array.from({ length: 20 }, (_, i) => ({ role: 'them', text: `q${i}` }));
+  const msgs = buildMessages({
+    prefix: 'P', question: 'q', history, contextOpts: { recentTurns: 4 },
+  });
+  // system + 4 条 + 当前
+  assert.strictEqual(msgs.length, 6);
+});
+
+test('buildMessages：只允许开头一条 system（严格网关常见限制）', () => {
+  const history = Array.from({ length: 30 }, (_, i) => ({
+    role: i % 2 ? 'me' : 'them', text: `关于订单系统的问题${i}`,
+  }));
+  const msgs = buildMessages({
+    prefix: 'P', question: '那个订单系统怎么做的', history,
+  });
+  const sys = msgs.filter((m) => m.role === 'system');
+  assert.strictEqual(sys.length, 1, 'system 只能有一条');
+  assert.strictEqual(msgs[0].role, 'system', '且必须在最前');
+  // 相邻角色不得重复
+  for (let i = 1; i < msgs.length; i += 1) {
+    assert.notStrictEqual(msgs[i].role, msgs[i - 1].role, `第 ${i} 条角色与前一条相同`);
+  }
+});
+
+test('buildMessages：短会话不插摘要，保持原样', () => {
+  const history = [{ role: 'them', text: '短问题' }];
+  const msgs = buildMessages({ prefix: 'P', question: '下一个', history });
+  assert.strictEqual(msgs.length, 3);
+  assert.ok(!msgs.some((m) => m.content.includes('问答概要')));
 });
 
 test('buildMessages：脏 history / 空文本不崩也不污染 messages', () => {

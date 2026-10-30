@@ -47,7 +47,7 @@ function waitInterval(ms, hooks = {}) {
  */
 async function generateOnce(cfgIn) {
   const cfg = cfgIn || {};
-  const { question, resume, jd, history, llm } = cfg;
+  const { question, resume, jd, history, llm, entries, contextOpts } = cfg;
   // FIX: maxAttempts 未夹紧时（配置写错就是一次上百次付费请求 + 每次最多等满超时）必须限制上限
   const asked = Number(cfg.maxAttempts);
   const maxAttempts = Number.isFinite(asked) ? Math.min(Math.max(Math.trunc(asked), 1), 5) : 3;
@@ -59,7 +59,7 @@ async function generateOnce(cfgIn) {
   let lastRaw = '';
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const messages = buildMessages({ prefix, question, history });
+    const messages = buildMessages({ prefix, question, history, entries, contextOpts });
     if (attempt > 1 && errors.length) {
       messages.push({ role: 'user', content: buildRepairInstruction(errors) });
     }

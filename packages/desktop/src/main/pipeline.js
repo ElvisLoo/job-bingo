@@ -31,7 +31,11 @@ const MOCK_QUESTIONS = [
 
 const MIN_GAP_MS = 2200;      // 同一问题的最小重触发间隔，防止 ASR 重复出字刷屏
 const MIN_TEXT_LEN = 4;       // 太短的片段基本是噪音或语气词
-const MAX_HISTORY = 6;        // 上下文轮数（与 core/prompt.js 的 slice(-6) 对应）
+const MAX_HISTORY = 6;        // 内存里保留的最近轮数（快速路径用）
+// 上下文交给 core/context.js 分层处理：近层原文 + 早期摘要 + 追问回溯。
+// 只留 6 轮会让「你刚才说的那个项目」无指代可依，模型只能编。
+const CONTEXT_RECENT = 8;     // 近层保留条数（约 4 轮）
+const CONTEXT_MAX_ENTRIES = 400; // 送给模型的历史硬上限，防止极端长会撑爆
 
 function normalize(text) {
   return String(text || '').replace(/\s+/g, '').replace(/[，。、,.!！;；:：~～]/g, '');
@@ -209,11 +213,24 @@ class Pipeline {
       const busy = cfg.busy || {};
       const state = { round: 0 };
 
+      // 本场完整记录：优先用场次 store（不截断），没有就退回内存 history
+      const fullEntries = (() => {
+        try {
+          const all = this.sessions && this.sessions.entries();
+          if (Array.isArray(all) && all.length) {
+            return all.slice(-CONTEXT_MAX_ENTRIES);
+          }
+        } catch (_) {}
+        return this.history.slice();
+      })();
+
       const r = await core.generateHintCard({
         question: clean,
         resume: this.ctx.getResume() || {},
         jd: cfg.jd,
         history: this.history.slice(0, -1),
+        entries: fullEntries,
+        contextOpts: { recentTurns: CONTEXT_RECENT },
         llm: cfg.llm,
         // 夜间免费额度被限流时：每 N 分钟自动重试，直到成功/超时/用户取消
         busy: {

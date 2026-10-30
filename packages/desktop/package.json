@@ -1,6 +1,6 @@
 {
   "name": "@job-bingo/desktop",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "private": true,
   "main": "src/main/index.js",
   "description": "实时思路提示：根据对方问题与你的简历，给出关键词与大纲（不代答）",
