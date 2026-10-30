@@ -27,9 +27,17 @@ contextBridge.exposeInMainWorld('copilot', {
   asrDemoWav: () => ipcRenderer.invoke('asr:demoWav'),
   asrStatus: () => ipcRenderer.invoke('asr:status'),
   // ---- 复盘 ----
-  reviewGenerate: () => ipcRenderer.invoke('review:generate'),
+  reviewGenerate: (sessionId) => ipcRenderer.invoke('review:generate', sessionId),
   reviewOpenFolder: () => ipcRenderer.invoke('review:openFolder'),
   reviewClear: () => ipcRenderer.invoke('review:clear'),
   reviewCount: () => ipcRenderer.invoke('review:count'),
   onReviewRequest: (cb) => { ipcRenderer.on('review:request', () => cb()); },
+  // ---- 场次 ----
+  sessionStart: (meta) => ipcRenderer.invoke('session:start', meta),
+  sessionEnd: () => ipcRenderer.invoke('session:end'),
+  sessionList: () => ipcRenderer.invoke('session:list'),
+  sessionCurrent: () => ipcRenderer.invoke('session:current'),
+  sessionRemove: (id) => ipcRenderer.invoke('session:remove', id),
+  sessionEntries: (id) => ipcRenderer.invoke('session:entries', id),
+  sessionSaveErrors: () => ipcRenderer.invoke('session:saveErrors'),
 });

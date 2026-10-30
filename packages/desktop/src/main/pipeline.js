@@ -425,10 +425,45 @@ class Pipeline {
 
   /** 写入全场记录（带时间戳，复盘时能看出节奏） */
   logTranscript(role, text) {
+    const at = Date.now();
     if (!this.transcript) this.transcript = [];
-    this.transcript.push({ role, text: String(text || '').slice(0, 2000), at: Date.now() });
+    this.transcript.push({ role, text: String(text || '').slice(0, 2000), at });
     // 上限 500 条：一场面试远不到这个量，纯粹防止长时间运行时无限增长
     if (this.transcript.length > 500) this.transcript = this.transcript.slice(-500);
+    // 同时写进当前场次：复盘按场取，二面三面不会搅在一起
+    if (this.sessions) this.sessions.push(role, text, at);
+  }
+
+  /**
+   * 开始新的一场。
+   * 上一场会自动落盘归档，不会丢。
+   */
+  startSession(meta = {}) {
+    if (!this.sessions) return null;
+    const r = this.sessions.start(meta);
+    // 新场次从空开始：旧场的 transcript 留着会让复盘串场
+    this.transcript = [];
+    this.history = [];
+    this.lastQuestion = '';
+    this.lastAskAt = 0;
+    return r;
+  }
+
+  endSession() {
+    return this.sessions ? this.sessions.end() : null;
+  }
+
+  /** 当前场次 id */
+  currentSessionId() {
+    return this.sessions ? this.sessions.currentId() : null;
+  }
+
+  /** 取某一场的记录（不传则取当前场） */
+  sessionEntries(id) {
+    if (!this.sessions) return [];
+    if (!id) return this.sessions.entries();
+    const d = this.sessions.read(id);
+    return d && Array.isArray(d.entries) ? d.entries : [];
   }
 
   /** 供复盘读取的快照 */

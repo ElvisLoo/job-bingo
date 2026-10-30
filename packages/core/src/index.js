@@ -10,6 +10,7 @@ const { buildStablePrefix, buildMessages, buildWarmupMessages } = require('./pro
 const { validateHintCard, buildRepairInstruction, countCJK } = require('./hint-card');
 const { createClient, parseCardObject, classifyError } = require('./llm');
 const review = require('./review');
+const session = require('./session');
 
 /** 繁忙退避的默认值：每 5 分钟重试一次，最多等 60 分钟 */
 const DEFAULT_BUSY = { intervalMs: 5 * 60 * 1000, maxWaitMs: 60 * 60 * 1000 };
@@ -184,6 +185,10 @@ function mockHintCard(question) {
 }
 
 module.exports = {
+  // ---- 场次 ----
+  SessionStore: session.SessionStore,
+  newSessionId: session.newSessionId,
+
   // ---- 复盘（M4）----
   generateReview: review.generateReview,
   normalizeTranscript: review.normalizeTranscript,

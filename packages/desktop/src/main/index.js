@@ -14,6 +14,7 @@ const core = require('@job-bingo/core');
 const { Pipeline } = require('./pipeline');
 const { createTrayImage, createAppIcon } = require('./tray-icon');
 const credentials = require('./credentials');
+const { createFsStorage } = require('./fs-storage');
 const { initAudioCapture, startCapture, stopCapture, captureStatus, selfTestCapture } = require('./audio-capture');
 
 // ---------- 单实例 ----------
@@ -316,10 +317,18 @@ async function warmupNow() {
  * 唯一的答题入口：设置窗口、热键、手机端 WS 全走这里，保证行为一致。
  * 所有输入都汇流到 pipeline，之后去重、提问判定、上下文管理的行为完全一致。
  */
+const SESSION_DIR = path.join(app.getPath('userData'), 'sessions');
+
 const pipeline = new Pipeline({
   getConfig: () => config,
   getResume: () => resumeData,
   pushCard,
+});
+
+// 场次存储：一场面试一份，连着二面三面不会混
+pipeline.sessions = new core.SessionStore({
+  storage: createFsStorage(SESSION_DIR),
+  maxSessions: 50,
 });
 
 async function answerQuestion(question, history, from) {
@@ -357,8 +366,12 @@ function reviewStamp() {
   };
 }
 
-ipcMain.handle('review:generate', async () => {
-  const transcript = pipeline.getTranscript();
+ipcMain.handle('review:generate', async (_e, sessionId) => {
+  // 指定场次就复盘那场；不指定则复盘当前进行中的场。
+  // 这样连着二面三面时，不会把两场的问题搅在一起。
+  const transcript = sessionId
+    ? pipeline.sessionEntries(sessionId)
+    : (pipeline.currentSessionId() ? pipeline.sessionEntries() : pipeline.getTranscript());
   if (!transcript.length) {
     return { ok: false, error: '还没有可复盘的记录：先开始采集，或手动提问几轮' };
   }
@@ -408,13 +421,48 @@ ipcMain.handle('review:openFolder', async () => {
 });
 
 ipcMain.handle('review:clear', async () => {
-  // 之前只清 transcript，history 还留着上一场的内容，
-  // 「清空复盘」之后新一场仍会带着旧上下文去消歧。
-  pipeline.reset();
-  return { ok: true };
+  // 「清空本场记录」= 结束当前场并开一场新的。
+  // 不能只清内存：磁盘上的旧场次还在，下次复盘又会翻出来。
+  const ended = pipeline.endSession();
+  pipeline.startSession({ jd: config.jd });
+  return { ok: true, ended };
 });
 
-ipcMain.handle('review:count', async () => ({ count: pipeline.getTranscript().length }));
+ipcMain.handle('review:count', async () => ({
+  count: pipeline.currentSessionId() ? pipeline.sessionEntries().length : pipeline.getTranscript().length,
+  sessionId: pipeline.currentSessionId(),
+}));
+
+// ---------- 场次 ----------
+ipcMain.handle('session:start', async (_e, meta) => {
+  const r = pipeline.startSession({ jd: config.jd, ...(meta || {}) });
+  return { ok: !!r, ...(r || {}) };
+});
+
+ipcMain.handle('session:end', async () => {
+  const r = pipeline.endSession();
+  return r ? { ok: true, ...r } : { ok: false, reason: '没有进行中的场次' };
+});
+
+ipcMain.handle('session:list', async () => ({ sessions: pipeline.sessions ? pipeline.sessions.list() : [] }));
+
+ipcMain.handle('session:current', async () => ({
+  id: pipeline.currentSessionId(),
+  count: pipeline.sessionEntries().length,
+}));
+
+ipcMain.handle('session:remove', async (_e, id) => {
+  if (!id || !pipeline.sessions) return { ok: false, error: '参数无效' };
+  return pipeline.sessions.remove(String(id));
+});
+
+ipcMain.handle('session:entries', async (_e, id) => ({
+  entries: pipeline.sessionEntries(id ? String(id) : undefined),
+}));
+
+ipcMain.handle('session:saveErrors', async () => ({
+  errors: pipeline.sessions ? pipeline.sessions.saveErrors : [],
+}));
 
 // 配对码只通过本机 IPC 给设置页，不经网络暴露
 ipcMain.handle('ws:token', async () => {

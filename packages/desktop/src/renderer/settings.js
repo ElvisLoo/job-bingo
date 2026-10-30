@@ -277,3 +277,87 @@ if (main && sections.length) {
     navItems.forEach((a, i) => a.classList.toggle('active', i === idx));
   }, { passive: true });
 }
+
+// ---------- 场次 ----------
+let activeSessionId = null;
+
+function fmtTime(ms) {
+  if (!ms) return '—';
+  const d = new Date(ms);
+  const p2 = (n) => String(n).padStart(2, '0');
+  return `${d.getMonth() + 1}/${d.getDate()} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+
+async function refreshSessions() {
+  try {
+    const cur = await window.copilot.sessionCurrent();
+    activeSessionId = cur && cur.id ? cur.id : null;
+    if ($('sessCurrent')) {
+      $('sessCurrent').innerHTML = activeSessionId
+        ? `当前场次 <b>${fmtTime(Date.now())}</b> · 已记录 ${cur.count} 条`
+        : '未开始（开始采集后会自动记录）';
+    }
+    const r = await window.copilot.sessionList();
+    const box = $('sessList');
+    if (!box) return;
+    const list = (r && r.sessions) || [];
+    if (!list.length) { box.innerHTML = '<div class="sess-empty">还没有历史场次</div>'; return; }
+    box.innerHTML = list.slice(0, 12).map((x) => {
+      const active = x.id === activeSessionId ? ' active' : '';
+      const tag = x.endedAt ? '已结束' : '进行中';
+      return `<div class="sess-item${active}" data-id="${x.id}">
+        <span class="when">${fmtTime(x.startedAt)} · ${tag}</span>
+        <span class="cnt">${x.entries} 条</span>
+        <button class="tiny" data-act="review">复盘</button>
+        <button class="tiny" data-act="del">删除</button>
+      </div>`;
+    }).join('');
+  } catch (_) { /* 主进程未就绪 */ }
+}
+
+if ($('sessList')) {
+  $('sessList').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const item = btn.closest('.sess-item');
+    const id = item && item.dataset.id;
+    if (!id) return;
+    if (btn.dataset.act === 'review') {
+      $('reviewNote').textContent = '生成中…';
+      const r = await window.copilot.reviewGenerate(id);
+      if (r && r.markdown) {
+        $('reviewOut').textContent = r.markdown;
+        $('reviewOut').hidden = false;
+        $('reviewNote').textContent = r.file ? '已保存：' + r.file : (r.saveError || '已生成');
+      } else {
+        $('reviewNote').textContent = (r && (r.error || r.saveError)) || '该场次没有记录';
+      }
+    } else if (btn.dataset.act === 'del') {
+      if (!confirm('删除这一场的记录？不可恢复。')) return;
+      const r = await window.copilot.sessionRemove(id);
+      $('reviewNote').textContent = r && r.ok ? '已删除' : ('删除失败：' + ((r && r.reason) || '未知'));
+      refreshSessions();
+    }
+  });
+}
+
+if ($('sessStart')) {
+  $('sessStart').onclick = async () => {
+    const r = await window.copilot.sessionStart({ jd: ($('jd') && $('jd').value) || '' });
+    $('reviewNote').textContent = r && r.ok ? '已开始新的一场（上一场已归档）' : '开始失败';
+    $('reviewOut').hidden = true;
+    refreshSessions();
+    refreshReviewCount();
+  };
+}
+
+if ($('sessEnd')) {
+  $('sessEnd').onclick = async () => {
+    const r = await window.copilot.sessionEnd();
+    $('reviewNote').textContent = r && r.ok ? `已结束（${r.entries} 条记录）` : ((r && r.reason) || '没有进行中的场次');
+    refreshSessions();
+  };
+}
+
+setInterval(refreshSessions, 5000);
+refreshSessions();
