@@ -18,7 +18,17 @@ const MAX_ITEMS = 12;          // 最多保留 12 轮，超出只取最近的部
 const QUOTE_MAX_CHARS = 40;    // 引述上限，避免模型整段抄
 const MIN_QUOTE_CHARS = 4;     // 太短的引述无法验证
 
-/** 把 pipeline.history 整理成可读的问答序列 */
+/**
+ * 把 pipeline.history 整理成可读的问答序列
+ *
+ * 只取最近的 MAX_ITEMS 轮是错的：一场 40 分钟的面试，
+ * 开场「介绍一下你自己」「说说你的项目」往往是最有复盘价值的，
+ * 而中后段常是几十轮同质化追问。只留尾部会让复盘模型
+ * 完全看不到你的开场表现，只能拿后半程的碎问来评判。
+ *
+ * 改为头尾各取一半：开头看"第一印象"，结尾看"最后有没有收好"。
+ * 中间被跳过的部分在返回结果里标记出来，避免模型以为记录是连续的。
+ */
 function normalizeTranscript(history) {
   if (!Array.isArray(history)) return [];
   const out = [];
@@ -36,7 +46,31 @@ function normalizeTranscript(history) {
     }
   }
   if (pendingQ) out.push({ question: pendingQ, answer: '' });
-  return out.slice(-MAX_ITEMS);
+
+  if (out.length <= MAX_ITEMS) return out;
+
+  // 头部略多于尾部：开场几乎必然有信息量，结尾有时只是「你还有什么问题」
+  const headCount = Math.ceil(MAX_ITEMS / 2);
+  const tailCount = MAX_ITEMS - headCount;
+  const head = out.slice(0, headCount);
+  const tail = out.slice(-tailCount);
+
+  // 不插入占位项：占位会污染引述校验（它会进 allText）、
+  // 统计（rounds 会多算一条）和提示词渲染。
+  // 省略信息通过数组上的非枚举属性传递，下游用 transcriptMeta() 读取。
+  const kept = head.concat(tail);
+  Object.defineProperty(kept, 'skipped', {
+    value: out.length - kept.length,
+    enumerable: false,
+  });
+  return kept;
+}
+
+/** 读取 normalizeTranscript 标注的"中间省略了多少轮" */
+function transcriptMeta(transcript) {
+  return {
+    skipped: (transcript && typeof transcript.skipped === 'number') ? transcript.skipped : 0,
+  };
 }
 
 /** 从问答里抽数字（用于「不许编造」校验） */
@@ -167,6 +201,14 @@ function buildReviewMessages(transcript, resumeMarkdown = '', jd = '') {
     return `${i + 1}. 问：${q}\n   答：${a}`;
   }).join('\n');
 
+  // 记录被截断时必须说清楚，否则模型会把"第 7 轮"当成紧接"第 6 轮"，
+  // 进而评价"你的回答没有承接上文" —— 而实际上中间只是没给它看。
+  const skipped = (transcript && typeof transcript.skipped === 'number') ? transcript.skipped : 0;
+  const omission = skipped > 0
+    ? `\n\n（记录已精简：中间省略 ${skipped} 轮重复度较高的问答，保留的是开场与结尾部分。`
+      + '不要因为前后不衔接就判定"回答缺少承接"。）'
+    : '';
+
   const system = [
     '你是一名严谨的面试复盘教练。用户会给你一场面试的问答记录。',
     '你的任务不是重新回答，而是指出「哪里答得薄」。',
@@ -186,7 +228,7 @@ function buildReviewMessages(transcript, resumeMarkdown = '', jd = '') {
 
   return [
     { role: 'system', content: system },
-    { role: 'user', content: `${context}\n\n问答记录：\n${lines}` },
+    { role: 'user', content: `${context}\n\n问答记录：\n${lines}${omission}` },
   ];
 }
 
@@ -264,6 +306,7 @@ function reviewToMarkdown(review, ctx = {}) {
 
 module.exports = {
   normalizeTranscript,
+  transcriptMeta,
   validateReview,
   localReview,
   generateReview,
