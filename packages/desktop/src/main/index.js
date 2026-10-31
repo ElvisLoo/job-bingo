@@ -788,6 +788,9 @@ function startWs() {
   const wss = new WebSocketServer({
     port: config.ws.port,
     host: '0.0.0.0',
+    // 帧大小上限。默认 100MB，等于把内存交给对端决定；
+    // 这里卡在 32MB，够一次长口述的音频，又不至于被一条消息打爆。
+    maxPayload: 32 * 1024 * 1024,
     verifyClient: (info, cb) => {
       try {
         const u = new URL(info.req.url || '/', 'ws://localhost');
@@ -810,12 +813,27 @@ function startWs() {
       try {
         const msg = JSON.parse(buf.toString());
         if (msg.type === 'question') {
-          await answerQuestion(msg.text, msg.history || [], 'phone');
+          // history 由客户端提供，不能无限信任：只取最后 12 条，
+          // 且每条截到 2000 字（与本地记录的上限一致）。
+          const hist = Array.isArray(msg.history) ? msg.history.slice(-12) : [];
+          const safeHist = hist
+            .filter((h) => h && typeof h === 'object' && h.text)
+            .map((h) => ({ role: h.role === 'me' ? 'me' : 'them', text: String(h.text).slice(0, 2000) }));
+          await answerQuestion(msg.text, safeHist, 'phone');
         } else if (msg.type === 'card') {
           pushCard({ type: 'card', card: msg.card, from: 'phone' });
         } else if (msg.type === 'audio') {
           // 手机端录好一段语音发过来：解码 → 转写 → 出卡（卡片会自动广播回手机）
-          const buf = Buffer.from(msg.wavBase64 || '', 'base64');
+          // 大小上限：base64 约为原始字节的 1.37 倍。
+          // 不设限的话，任何能连上来的客户端都可以发一个几百 MB 的字符串，
+          // 解码后直接把内存和 ASR 队列打满。
+          const MAX_B64 = 24 * 1024 * 1024; // 约 16MB 音频，远超一次口述所需
+          const rawB64 = String(msg.wavBase64 || '');
+          if (rawB64.length > MAX_B64) {
+            ws.send(JSON.stringify({ type: 'audio:ack', ok: false, error: '音频过大（上限约 16MB）' }));
+            return;
+          }
+          const buf = Buffer.from(rawB64, 'base64');
           if (!buf.length) { ws.send(JSON.stringify({ type: 'audio:ack', ok: false, error: '空音频' })); return; }
           // 手机按住说话录到的是**用户自己**：role='me' 只进上下文，不出卡。
           // split=false：手机录的已是一句话，再切段会被拆成几句分别转写。
@@ -840,7 +858,21 @@ function startWs() {
       }
     });
   });
-  wss.on('error', (e) => console.warn('[ws]', e.message));
+  wss.on('error', (e) => {
+    console.warn('[ws]', e.message);
+    // 端口被占用是最常见的失败：用户还照着设置页那个地址去连手机，
+    // 连不上会以为是手机或 Wi-Fi 的问题，实际上服务根本没起来。
+    if (e && e.code === 'EADDRINUSE') {
+      pushCard({
+        type: 'status',
+        level: 'warn',
+        text: `手机通道端口 ${config.ws.port} 被占用，手机端无法连接。`
+          + '可在设置里换一个端口，或关掉占用它的程序后重启。',
+      });
+    } else {
+      pushCard({ type: 'status', level: 'warn', text: `手机通道启动失败：${e && e.message}` });
+    }
+  });
   return wss;
 }
 
