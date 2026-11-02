@@ -458,12 +458,25 @@ ipcMain.handle('review:generate', async (_e, sessionId) => {
   try {
     fs.mkdirSync(REVIEW_DIR, { recursive: true });
     // 文件名原本只到分钟，同一分钟内连点两次「生成复盘」会互相覆盖。
-    // 这里加秒，并做一次冲突探测兜底。
+    // 这里加秒，并用 'wx' 原子独占创建兜底 ——
+    // existsSync 探测和写入之间有窗口，两次快速点击仍可能撞上同一文件名，
+    // 结果后一次把前一次覆盖掉，而用户以为两份都在。
     let file = path.join(REVIEW_DIR, `复盘-${stamp.name}.md`);
-    for (let i = 2; fs.existsSync(file); i++) {
-      file = path.join(REVIEW_DIR, `复盘-${stamp.name}-${i}.md`);
+    let written = false;
+    for (let i = 1; i <= 50 && !written; i++) {
+      const candidate = i === 1
+        ? file
+        : path.join(REVIEW_DIR, `复盘-${stamp.name}-${i}.md`);
+      try {
+        fs.writeFileSync(candidate, md, { encoding: 'utf8', flag: 'wx' });
+        file = candidate;
+        written = true;
+      } catch (e) {
+        // EEXIST 说明文件名被占了，换下一个；其它错误（磁盘满/权限）直接抛出去
+        if (e && e.code !== 'EEXIST') throw e;
+      }
     }
-    fs.writeFileSync(file, md, 'utf8');
+    if (!written) throw new Error('同名复盘文件过多，无法写入');
     return { ok: true, review: r.review, markdown: md, file, degraded: !!r.degraded };
   } catch (e) {
     // 落盘失败必须如实告诉调用方：原来返回 ok:true，

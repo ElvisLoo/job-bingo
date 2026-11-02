@@ -175,20 +175,26 @@ class Pipeline {
     // 抢锁必须是原子的（同步完成），否则三个请求同时进来会全都看到「锁为空」。
     // 之前先 await 再赋值，await 会让出执行权，导致三个请求同时通过检查 ——
     // 并发测试实测并发度 3，等于没锁。
+    // 互斥必须用「先排队、拿到锁再执行」的结构，
+    // 不能「先占位、再等前一个」：占位之后后来者看到的是一把
+    // 永远不会及时释放的锁，等待期间它们会各自占位、各自通过，
+    // 实测并发度能到 3 甚至更高 —— 等于没锁。
     let releaseLock = null;
+    let myLock = null;
     if (force) {
-      const prev = this._forceLock;
-      this._forceLock = new Promise((r) => { releaseLock = r; });
-      if (prev) {
-        try { await prev; } catch (_) { /* 前一个失败不影响本次 */ }
+      while (this._forceLock) {
+        try { await this._forceLock; } catch (_) { /* 前一个失败不影响本次 */ }
       }
+      myLock = new Promise((r) => { releaseLock = r; });
+      this._forceLock = myLock;
     }
     const _doRelease = () => {
       if (releaseLock) {
         releaseLock();
         releaseLock = null;
-        // 只清自己持有的那把锁，避免把后来者的锁清掉
-        if (force) this._forceLock = null;
+        // 只清自己持有的那把锁：后来者可能已经把新锁写进去了，
+        // 无条件置 null 会连它的锁一起毁掉。
+        if (force && this._forceLock === myLock) this._forceLock = null;
       }
     };
 
@@ -383,20 +389,25 @@ class Pipeline {
     // 关键：锁必须在**转写之前**抢。
     // 之前锁在 ingest 里，而转写（网络请求，几百毫秒到几秒）在它之前跑，
     // 三个音频段同时进来会并发调用三次 ASR —— 既重复计费，转写服务也容易被限流。
-    if (this._asrLock) {
+    //
+    // 实现要点（踩过坑）：
+    //   1. 只在 finally 里清掉「自己的」那把锁，不能无条件置 null ——
+    //      后来者已经把新的 Promise 写进 _asrLock 了，置 null 等于把它的锁也毁掉，
+    //      再下一个请求就会跳过等待，与它并发跑（实测最大并发数会变成 2）。
+    //   2. 用一个 while 循环排队，而不是先 await 再抢锁的两次等待：
+    //      两次等待之间有窗口，多个请求可能同时通过第一道判断。
+    while (this._asrLock) {
       try { await this._asrLock; } catch (_) { /* 前一个失败不影响本次 */ }
     }
     let releaseAsr = null;
-    {
-      const prev = this._asrLock;
-      this._asrLock = new Promise((r) => { releaseAsr = r; });
-      if (prev) { try { await prev; } catch (_) {} }
-    }
+    const mine = new Promise((r) => { releaseAsr = r; });
+    this._asrLock = mine;
     try {
       return await this._feedPcmInner(pcm, role, opts);
     } finally {
       if (releaseAsr) releaseAsr();
-      this._asrLock = null;
+      // 只有自己仍是当前锁时才清空，避免误清后来者的锁
+      if (this._asrLock === mine) this._asrLock = null;
     }
   }
 
