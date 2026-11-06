@@ -10,6 +10,7 @@ const { buildStablePrefix, buildMessages, buildWarmupMessages } = require('./pro
 const { validateHintCard, buildRepairInstruction, countCJK } = require('./hint-card');
 const { createClient, parseCardObject, classifyError } = require('./llm');
 const review = require('./review');
+const coach = require('./coach');
 const usage = require('./usage');
 const session = require('./session');
 
@@ -213,6 +214,13 @@ module.exports = {
   localReview: review.localReview,
   reviewToMarkdown: review.reviewToMarkdown,
   buildReviewMessages: review.buildReviewMessages,
+
+  // ---- 教练式追问（Coach）----
+  generateCoach: coach.generateCoach,
+  localCoach: coach.localCoach,
+  buildCoachMessages: coach.buildCoachMessages,
+  validateCoach: coach.validateCoach,
+  MAX_COACH_QUESTIONS: coach.MAX_QUESTIONS,
 
   // ---- 用量与费用 ----
   createLedger: usage.createLedger,
