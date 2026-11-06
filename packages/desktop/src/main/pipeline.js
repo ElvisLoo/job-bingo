@@ -79,6 +79,10 @@ class Pipeline {
     this._forceLock = null;
     this._asrLock = null;
     this.stats = { ingested: 0, droppedShort: 0, droppedDup: 0, droppedOwn: 0, generated: 0, busyWaits: 0 };
+    // 用量账本：只放内存。每次调模型（含重试）都记一笔，
+    // 因为失败的尝试同样计费，漏记会让花费看起来偏低。
+    this.ledger = core.createLedger ? core.createLedger() : null;
+    this.pricingOverrides = null;
     // 全场记录（不裁剪），只供复盘使用。history 会截断到 6 轮，不能拿它复盘。
     this.transcript = [];
     this.router = null;
@@ -123,6 +127,42 @@ class Pipeline {
       lastQuestion: this.lastQuestion,
       waiting: !!this.waitingBusy,
       stats: { ...this.stats },
+      usage: this.usageSummary(),
+    };
+  }
+
+  /** 把一次出卡产生的所有调用记进账本（重试也要算） */
+  recordUsage(r) {
+    if (!this.ledger || !core.addCall) return;
+    const list = (r && r.usages && r.usages.length)
+      ? r.usages
+      : (r && r.usage ? [{ usage: r.usage, model: r.card && r.card.meta && r.card.meta.model }] : []);
+    for (const u of list) {
+      if (!u || !u.usage) continue;
+      // 用户自定义单价优先于内置表
+      core.addCall(this.ledger, u.usage, u.model, this.pricingOverrides);
+    }
+  }
+
+  /** 由主进程注入自定义单价（覆盖内置价格表） */
+  setPricingOverrides(map) {
+    this.pricingOverrides = (map && typeof map === 'object') ? map : null;
+    // 已记账的金额是按旧价算的，这里不回溯重算：
+    // 单价的改动应从下一次调用起生效，避免历史账单在用户切换模型后来回跳。
+  }
+
+  /** 给 UI 的用量摘要（结构化 + 一句人话） */
+  usageSummary() {
+    if (!this.ledger) return null;
+    return {
+      calls: this.ledger.calls,
+      prompt: this.ledger.prompt,
+      completion: this.ledger.completion,
+      cached: this.ledger.cached,
+      costMilli: this.ledger.costMilli,
+      unknownCalls: this.ledger.unknownCalls,
+      byModel: this.ledger.byModel,
+      text: core.summarizeUsage ? core.summarizeUsage(this.ledger) : '',
     };
   }
 
@@ -510,6 +550,8 @@ class Pipeline {
     this.transcript = [];
     this.lastQuestion = '';
     this.lastAskAt = 0;
+    // 重置流水线的同时清零用量，让「本场花费」从零开始
+    if (core.createLedger) this.ledger = core.createLedger();
   }
 }
 

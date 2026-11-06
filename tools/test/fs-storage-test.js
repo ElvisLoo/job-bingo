@@ -17,7 +17,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { createFsStorage } = require('../packages/desktop/src/main/fs-storage');
+const { createFsStorage } = require('../../packages/desktop/src/main/fs-storage');
 
 /** 每个用例一个干净目录，测完删掉 */
 function withDir(fn) {

@@ -225,6 +225,40 @@
       <pre id="reviewOut" class="review-out" hidden></pre>
     </section>
 
+    <section id="s-usage" class="card">
+      <div class="card-head">
+        <h2>用量与花费</h2>
+        <span class="hint" id="usageScope">本场</span>
+      </div>
+      <div class="usage-grid">
+        <div class="usage-cell">
+          <span class="usage-label">调用次数</span>
+          <span class="usage-value" id="usageCalls">0</span>
+        </div>
+        <div class="usage-cell">
+          <span class="usage-label">输入 token</span>
+          <span class="usage-value" id="usageIn">0</span>
+        </div>
+        <div class="usage-cell">
+          <span class="usage-label">输出 token</span>
+          <span class="usage-value" id="usageOut">0</span>
+        </div>
+        <div class="usage-cell">
+          <span class="usage-label">估算花费</span>
+          <span class="usage-value accent" id="usageCost">¥0</span>
+        </div>
+      </div>
+      <div class="usage-bar" id="usageBar" hidden></div>
+      <p class="note block" id="usageNote">
+        单价按各厂公开价内置；未收录的模型只统计 token，不估算金额，避免给你一个编出来的数字。
+      </p>
+      <p class="usage-detail-row" id="usageDetail"></p>
+      <div class="usage-actions">
+        <button id="usageRefresh" class="tiny">刷新</button>
+        <button id="usagePricing" class="tiny ghost">自定义单价</button>
+      </div>
+    </section>
+
     <section id="s-bound" class="card subtle">
       <div class="card-head"><h2>边界</h2></div>
       <ul class="bound-list">
@@ -238,5 +272,6 @@
 </div>
 
 <script src="settings.js"></script>
+  <script src="usage-panel.js"></script>
 </body>
 </html>

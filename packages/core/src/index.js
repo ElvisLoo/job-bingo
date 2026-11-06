@@ -10,6 +10,7 @@ const { buildStablePrefix, buildMessages, buildWarmupMessages } = require('./pro
 const { validateHintCard, buildRepairInstruction, countCJK } = require('./hint-card');
 const { createClient, parseCardObject, classifyError } = require('./llm');
 const review = require('./review');
+const usage = require('./usage');
 const session = require('./session');
 
 /** 繁忙退避的默认值：每 5 分钟重试一次，最多等 60 分钟 */
@@ -52,6 +53,8 @@ async function generateOnce(cfgIn) {
   const asked = Number(cfg.maxAttempts);
   const maxAttempts = Number.isFinite(asked) ? Math.min(Math.max(Math.trunc(asked), 1), 5) : 3;
   const idx = indexResume(resume || {});
+  // 一次「出卡」可能重试多次，每次都已计费，全部记下来
+  let usageAcc = [];
   const prefix = buildStablePrefix(idx.markdown, jd);
   const client = createClient(llm || {});
 
@@ -96,14 +99,26 @@ async function generateOnce(cfgIn) {
         attempt,
         anchorCount: idx.anchors.length,
       };
-      return { card, attempts: attempt, latencyMs: Date.now() - started, errors: [] };
+      // usage 一路带到 UI，成本看板靠它算钱（失败重试的中间调用也已付费，按次累加）
+      if (res.usage) {
+        card.meta.usage = res.usage;
+        usageAcc = usageAcc.concat([{ usage: res.usage, model: client.model }]);
+      }
+      return {
+        card,
+        attempts: attempt,
+        latencyMs: Date.now() - started,
+        errors: [],
+        usage: res.usage || null,
+        usages: usageAcc.slice()
+      };
     }
 
     errors.length = 0;
     for (const e of v.errors) errors.push(e);
   }
 
-  return { card: null, attempts: maxAttempts, latencyMs: 0, errors, raw: lastRaw };
+  return { card: null, attempts: maxAttempts, latencyMs: 0, errors, raw: lastRaw, usages: usageAcc.slice() };
 }
 
 /**
@@ -158,6 +173,8 @@ async function generateHintCard(cfgIn) {
 /** 预热 provider 的 KV cache，面试开始前调一次，之后每题首 token 更快 */
 async function warmup(llm, resume, jd) {
   const idx = indexResume(resume || {});
+  // 一次「出卡」可能重试多次，每次都已计费，全部记下来
+  let usageAcc = [];
   const prefix = buildStablePrefix(idx.markdown, jd);
   const client = createClient(llm || {});
   const started = Date.now();
@@ -196,6 +213,19 @@ module.exports = {
   localReview: review.localReview,
   reviewToMarkdown: review.reviewToMarkdown,
   buildReviewMessages: review.buildReviewMessages,
+
+  // ---- 用量与费用 ----
+  createLedger: usage.createLedger,
+  addCall: usage.addCall,
+  costOf: usage.costOf,
+  parseUsage: usage.parseUsage,
+  priceOf: usage.priceOf,
+  normalizeModel: usage.normalizeModel,
+  formatMoney: usage.formatMoney,
+  formatTokens: usage.formatTokens,
+  summarizeUsage: usage.summarize,
+  usageFromEntries: usage.fromEntries,
+  PRICING: usage.PRICING,
 
   generateHintCard,
   generateOnce,

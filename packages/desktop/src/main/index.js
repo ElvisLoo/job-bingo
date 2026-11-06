@@ -422,6 +422,28 @@ ipcMain.handle('pipeline:status', async () => pipeline.status());
 ipcMain.handle('pipeline:reset', async () => { pipeline.reset(); return { ok: true }; });
 ipcMain.handle('busy:cancel', async () => pipeline.cancelBusyWait());
 
+// 自定义模型单价：用户自己填，覆盖 core 里的默认表。
+// 只存内存与配置，不联网校验——我们没法替供应商保证价格。
+let usagePricing = {};
+
+ipcMain.handle('usage:setPricing', async (_e, overrides) => {
+  const clean = {};
+  if (overrides && typeof overrides === 'object') {
+    for (const [name, p] of Object.entries(overrides)) {
+      const key = String(name || '').trim().toLowerCase();
+      if (!key || !p || typeof p !== 'object') continue;
+      clean[key] = {
+        in: Math.max(0, Number(p.in) || 0),
+        cacheHit: Math.max(0, Number(p.cacheHit != null ? p.cacheHit : p.in) || 0),
+        out: Math.max(0, Number(p.out) || 0),
+      };
+    }
+  }
+  usagePricing = clean;
+  if (pipeline && pipeline.setPricingOverrides) pipeline.setPricingOverrides(clean);
+  return { ok: true, count: Object.keys(clean).length };
+});
+
 // ---------- 复盘（M4）----------
 // 复盘是事后动作：把全场问答折成纪要，落成 Markdown。
 // 校验与兜底都在 core 里，这里只负责取数据、落盘、打开。
@@ -914,6 +936,11 @@ app.whenReady().then(() => {
   createTray();
   registerShortcuts();
   startWs();
+
+  // 调试用：OPEN_SETTINGS=1 时启动即打开设置窗，便于截图与自检
+  if (process.env.OPEN_SETTINGS === '1') {
+    setTimeout(() => { try { createSettings(); } catch (_) {} }, 600);
+  }
 
   // 热键被占用时必须说一声：否则用户按了没反应，会以为软件坏了。
   // 只提示、不阻塞启动 —— 托盘菜单里仍有全部功能的等价入口。

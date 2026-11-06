@@ -237,6 +237,70 @@ input[type=range]::-webkit-slider-thumb {
 .review-out::-webkit-scrollbar { width: 8px; }
 .review-out::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .08); border-radius: 4px; }
 
+/* ---------- 用量与花费 ---------- */
+.usage-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.usage-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .025);
+  border: 1px solid rgba(255, 255, 255, .05);
+}
+.usage-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: .02em;
+}
+.usage-value {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 15px;
+  color: #d4dced;
+  font-variant-numeric: tabular-nums;
+}
+.usage-value.accent { color: #7dd3a0; }
+.usage-bar {
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, .06);
+  overflow: hidden;
+  /* 与上方数值格拉开距离，避免被看成一条分隔线 */
+  margin: 6px 0 12px;
+}
+/* 没有缓存数据时不画进度，但保留底槽，避免三种状态切换时高度跳动 */
+.usage-bar.empty > i { display: none; }
+.usage-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+/* 全局 button.tiny 带 margin-left:auto（设计成卡片右上角单个按钮），
+   这里是一排按钮，必须清掉，否则它们会被推到两端 */
+.usage-actions button.tiny {
+  margin-left: 0;
+}
+.usage-detail-row {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  word-break: break-all;
+}
+.usage-bar > i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #7dd3a0);
+  border-radius: 99px;
+  transition: width .3s ease;
+}
+
 /* ---------- 边界 ---------- */
 .bound-list { margin: 0; padding-left: 18px; color: var(--text-dim); font-size: 12.5px; }
 .bound-list li { margin-bottom: 6px; }

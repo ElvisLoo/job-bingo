@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('copilot', {
   captureStop: () => ipcRenderer.invoke('capture:stop'),
   captureStatus: () => ipcRenderer.invoke('capture:status'),
   pipelineStatus: () => ipcRenderer.invoke('pipeline:status'),
+  setUsagePricing: (overrides) => ipcRenderer.invoke('usage:setPricing', overrides),
   pipelineReset: () => ipcRenderer.invoke('pipeline:reset'),
   pipelineStart: (src) => ipcRenderer.invoke('pipeline:start', src),
   pipelineStop: () => ipcRenderer.invoke('pipeline:stop'),
