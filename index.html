@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="paper">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面必过 job_bingo — 面试时实时给你思路要点，不代答</title>
+<meta name="description" content="面必过（job_bingo）：面试时根据面试官的问题和你的简历，实时给出 2–4 条不超过 18 字的要点大纲。不代答，红线由代码强制，不靠模型自觉。">
+<link rel="icon" href="./assets/icon.png">
+<style>
+/* =========================================================
+   面必过 job_bingo · 项目主页
+   单文件、零依赖、无构建。主题靠 [data-theme] 切 CSS 变量。
+   设计语言对齐 work-encourager 品牌：暖纸色 + 深咖双主题。
+   ========================================================= */
+
+:root {
+  --font-ui: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei",
+             "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  --font-num: "DIN Alternate", "Bahnschrift", "SF Mono", "Cascadia Mono",
+              Consolas, monospace;
+  --maxw: 1080px;
+  --r: 14px;
+}
+
+/* —— 羊皮纸（浅色） —— */
+html[data-theme="paper"] {
+  --bg: #f4ecdd;
+  --bg-2: #efe4d0;
+  --panel: #fbf6ec;
+  --panel-2: #f4ecdc;
+  --line: #e2d5bd;
+  --line-2: #d3c3a5;
+  --ink: #3a3226;
+  --ink-2: #6f6351;
+  --ink-3: #9b8d78;
+  --accent: #b5642c;
+  --accent-2: #c98a4b;
+  --accent-bg: #f3e3ce;
+  --green: #4a7040;
+  --shadow: 0 1px 2px rgba(90,70,40,.06), 0 10px 30px rgba(90,70,40,.08);
+  --shadow-lg: 0 24px 70px rgba(60,45,25,.18);
+  --track: #e8dcc6;
+}
+
+/* —— 深咖（深色） —— */
+html[data-theme="night"] {
+  --bg: #1a1510;
+  --bg-2: #221c16;
+  --panel: #221c16;
+  --panel-2: #2a231b;
+  --line: #352f28;
+  --line-2: #463d32;
+  --ink: #f0e5d2;
+  --ink-2: #b6a78f;
+  --ink-3: #7d705c;
+  --accent: #e2a15e;
+  --accent-2: #c98a4b;
+  --accent-bg: #33281c;
+  --green: #9dc08f;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  --shadow-lg: 0 24px 70px rgba(0,0,0,.6);
+  --track: #332c24;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  transition: background .4s ease, color .4s ease;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+/* ---------- 顶栏 ---------- */
+.nav {
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: blur(14px);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  border-bottom: 1px solid var(--line);
+}
+.nav-in { display: flex; align-items: center; gap: 14px; height: 62px; }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 15px; }
+.brand img { width: 26px; height: 26px; border-radius: 7px; }
+.nav-links { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.nav-links a {
+  color: var(--ink-2); font-size: 13.5px; padding: 7px 11px; border-radius: 8px;
+}
+.nav-links a:hover { background: var(--panel-2); text-decoration: none; color: var(--ink); }
+
+.theme-btn {
+  min-width: 42px; height: 30px; padding: 0 9px; border-radius: 9px;
+  border: 1px solid var(--line-2); background: var(--panel);
+  color: var(--ink-2); font-size: 15px; cursor: pointer;
+  display: grid; place-items: center;
+  transition: all .18s;
+}
+.theme-btn:hover { color: var(--accent); border-color: var(--accent-2); }
+
+/* ---------- 首屏 ---------- */
+.hero { padding: 60px 0 8px; text-align: center; }
+.badge {
+  display: inline-flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: center;
+  font-size: 12.5px; color: var(--ink-2);
+  background: var(--panel); border: 1px solid var(--line);
+  padding: 5px 13px; border-radius: 99px; margin-bottom: 22px;
+}
+.badge b { color: var(--accent); font-family: var(--font-num); }
+.badge .sep { opacity: .5; }
+h1 {
+  font-size: clamp(28px, 5vw, 46px);
+  line-height: 1.28; margin: 0 0 18px;
+  letter-spacing: -.02em; font-weight: 700;
+}
+h1 em { font-style: normal; color: var(--accent); }
+h1 .en { color: var(--ink-3); font-weight: 500; font-family: var(--font-num); }
+.lead {
+  font-size: clamp(14px, 1.7vw, 16.5px);
+  color: var(--ink-2); max-width: 660px; margin: 0 auto 30px;
+  line-height: 1.85;
+}
+.lead strong { color: var(--ink); font-weight: 600; }
+
+.cta { display: flex; gap: 11px; justify-content: center; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 12px 24px; border-radius: 11px;
+  font-size: 14.5px; font-weight: 500;
+  border: 1px solid transparent; cursor: pointer;
+  transition: transform .16s, box-shadow .16s, background .16s;
+}
+.btn:hover { transform: translateY(-1px); text-decoration: none; }
+.btn-primary {
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
+  color: #fff8ee; box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 34%, transparent);
+}
+.btn-primary:hover { box-shadow: 0 12px 28px color-mix(in srgb, var(--accent) 42%, transparent); }
+.btn-ghost {
+  background: var(--panel); color: var(--ink);
+  border-color: var(--line-2); box-shadow: var(--shadow);
+}
+.btn-ghost:hover { border-color: var(--accent-2); color: var(--accent); }
+
+.hero-meta { margin-top: 18px; font-size: 12.5px; color: var(--ink-3); }
+
+/* 红线声明条 */
+.redline {
+  margin: 34px auto 0; max-width: 660px;
+  background: var(--accent-bg); border: 1px solid var(--accent-2);
+  border-radius: var(--r); padding: 16px 20px;
+  font-size: 13.5px; color: var(--ink); text-align: left;
+  box-shadow: var(--shadow);
+}
+.redline b { color: var(--accent); }
+.redline code {
+  font-family: var(--font-num); font-size: 12.5px;
+  background: var(--panel-2); padding: 1px 6px; border-radius: 5px;
+  border: 1px solid var(--line);
+}
+
+/* ---------- 通用区块 ---------- */
+section { padding: 54px 0; }
+.sec-head { text-align: center; margin-bottom: 40px; }
+.sec-kicker {
+  font-size: 12px; letter-spacing: .14em; color: var(--accent);
+  text-transform: uppercase; margin-bottom: 9px; font-weight: 600;
+}
+h2 { font-size: clamp(22px, 3vw, 29px); margin: 0 0 11px; letter-spacing: -.01em; }
+.sec-sub { color: var(--ink-2); font-size: 14.5px; max-width: 600px; margin: 0 auto; }
+
+/* ---------- 流水线步骤 ---------- */
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.step {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 18px 20px; box-shadow: var(--shadow);
+}
+.step-no {
+  font-family: var(--font-num); font-size: 12px; color: var(--accent);
+  font-weight: 600; letter-spacing: .08em; margin-bottom: 8px; display: block;
+}
+.step h3 { font-size: 15px; margin: 0 0 7px; font-weight: 600; }
+.step p { margin: 0; font-size: 13px; color: var(--ink-2); line-height: 1.72; }
+.step code {
+  font-family: var(--font-num); font-size: 12.5px;
+  background: var(--panel-2); padding: 1px 6px; border-radius: 5px;
+  border: 1px solid var(--line); color: var(--ink);
+}
+
+/* ---------- 功能卡 ---------- */
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 1000px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px)  { .grid { grid-template-columns: 1fr; } }
+.card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 20px 21px;
+  box-shadow: var(--shadow);
+  transition: transform .18s, border-color .18s;
+}
+.card:hover { transform: translateY(-2px); border-color: var(--line-2); }
+.card-ico { font-size: 20px; margin-bottom: 9px; line-height: 1; }
+.card h3 { font-size: 14.5px; margin: 0 0 7px; font-weight: 600; }
+.card p { margin: 0; font-size: 13px; color: var(--ink-2); line-height: 1.72; }
+
+/* ---------- 闸门区 ---------- */
+.gates { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+@media (max-width: 1000px) { .gates { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px)  { .gates { grid-template-columns: 1fr; } }
+.gate {
+  background: var(--panel); border: 1px solid var(--line);
+  border-left: 3px solid var(--accent); border-radius: 10px;
+  padding: 16px 16px 14px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 7px;
+}
+.gate-code {
+  font-family: var(--font-num); font-size: 12px; font-weight: 600;
+  color: var(--accent); letter-spacing: .02em;
+}
+.gate-cond { font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.5; }
+.gate-why { font-size: 12.5px; color: var(--ink-2); line-height: 1.65; }
+.gates-note {
+  margin-top: 18px; font-size: 13px; color: var(--ink-2);
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 14px 18px; line-height: 1.75;
+}
+.gates-note code {
+  font-family: var(--font-num); font-size: 12px;
+  background: var(--panel-2); padding: 1px 6px; border-radius: 5px;
+  border: 1px solid var(--line);
+}
+
+/* ---------- 截图廊 ---------- */
+.gallery { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; align-items: start; }
+@media (max-width: 780px) { .gallery { grid-template-columns: 1fr; } }
+.gallery-wide { grid-template-columns: 1fr; }
+.shot {
+  margin: 0; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r); overflow: hidden; box-shadow: var(--shadow);
+  display: flex; flex-direction: column;
+}
+.shot img {
+  display: block; width: 100%; height: auto;
+  object-fit: contain; background: var(--panel-2);
+}
+.shot figcaption {
+  padding: 10px 13px; font-size: 12px; color: var(--ink-2);
+  border-top: 1px solid var(--line); background: var(--panel-2);
+  line-height: 1.55;
+}
+
+/* ---------- 边界 / 热键 表格 ---------- */
+.rules { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 780px) { .rules { grid-template-columns: 1fr; } }
+.rule {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 15px 17px;
+  font-size: 13.5px; color: var(--ink-2); line-height: 1.7;
+}
+.rule b { display: block; color: var(--ink); font-size: 14px; margin-bottom: 4px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--line); }
+th { color: var(--ink-2); font-weight: 500; font-size: 12.5px; }
+td code, td kbd {
+  font-family: var(--font-num); font-size: 12.5px;
+  background: var(--panel-2); padding: 1px 7px; border-radius: 5px;
+  border: 1px solid var(--line); color: var(--ink);
+}
+.note { font-size: 12.5px; color: var(--ink-3); line-height: 1.75; }
+
+/* ---------- 页脚 ---------- */
+footer {
+  border-top: 1px solid var(--line);
+  padding: 34px 0 44px; text-align: center;
+  font-size: 12.5px; color: var(--ink-3);
+}
+footer a { color: var(--ink-2); }
+footer .sep { margin: 0 8px; opacity: .5; }
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 900px) { .steps { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 780px) {
+  .nav-links a:not(.keep) { display: none; }
+  .hero { padding: 48px 0 40px; }
+  section { padding: 46px 0; }
+  .steps { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap nav-in">
+    <div class="brand">
+      <img src="./assets/icon.png" alt="">
+      <span>面必过</span>
+    </div>
+    <div class="nav-links">
+      <a href="#pipeline">流水线</a>
+      <a href="#features">功能</a>
+      <a href="#gates">不代答</a>
+      <a href="#shots">截图</a>
+      <a href="#bounds">边界</a>
+      <a class="keep" href="https://github.com/ElvisLoo/job-bingo">GitHub</a>
+      <button class="theme-btn" id="themeBtn" aria-label="切换主题" title="切换主题">深色</button>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="badge">
+      <span id="verText"><b>v0.4.0</b></span>
+      <span class="sep">·</span>
+      <span>Windows 10 / 11</span>
+      <span class="sep">·</span>
+      <span>Electron 33</span>
+      <span class="sep">·</span>
+      <span>本地优先</span>
+    </div>
+
+    <h1>面必过 <span class="en">job_bingo</span><br>面试时实时给你<em>思路要点</em></h1>
+    <p class="lead">
+      根据面试官刚问出的问题 + 你自己的简历，浮窗立刻给出
+      <strong>2–4 条、每条不超过 18 字</strong>的要点大纲。
+      <strong>不代答</strong> —— 你用自己的语言组织回答。
+    </p>
+
+    <div class="cta">
+      <a class="btn btn-primary" href="https://github.com/ElvisLoo/job-bingo/releases/latest">
+        下载 Windows 安装包
+      </a>
+      <a class="btn btn-ghost" href="https://github.com/ElvisLoo/job-bingo">
+        查看源码
+      </a>
+    </div>
+    <p class="hero-meta">NSIS 安装版 + 免安装便携版 · MIT 开源 · 没配 API Key 也能进演示模式</p>
+
+    <div class="redline">
+      <b>红线由代码强制，不靠模型自觉。</b>
+      提示词只是建议，<code>validateHintCard</code> 才是法律 —— 模型迟早会飘，校验器不会。
+      每条要点必须连过 <a href="#gates">五道闸门</a>，长得像「能直接念出的成稿」一律拦下重写。
+    </div>
+  </div>
+</header>
+
+<section id="pipeline">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-kicker">Pipeline</div>
+      <h2>它是怎么工作的</h2>
+      <p class="sec-sub">所有输入源 —— 手动输入、手机端 WS、系统声音回环、麦克风 —— 全部汇流到同一个流水线，之后的行为完全一致。</p>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <span class="step-no">01</span>
+        <h3>提问判定</h3>
+        <p>疑问词、或「继续」「具体」这类祈使式追问才触发。<br>避免把你自己的回答当成新问题，反复出无关的卡。</p>
+      </div>
+      <div class="step">
+        <span class="step-no">02</span>
+        <h3>2.2 秒时间窗</h3>
+        <p>同一个问题 <code>2200ms</code> 内不重复出卡，<br>防止 ASR 重复出字把浮窗刷成一片。</p>
+      </div>
+      <div class="step">
+        <span class="step-no">03</span>
+        <h3>相似度去重</h3>
+        <p>按字做 Jaccard，<code>&gt; 0.72</code> 视为同一问题跳过。<br>口语里的重复表述不会触发第二次生成。</p>
+      </div>
+      <div class="step">
+        <span class="step-no">04</span>
+        <h3>6 轮上下文</h3>
+        <p>内存里保留最近 6 轮送给模型消歧，<br>「你刚才说的那个项目」也能对得上号。</p>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:18px;text-align:center">
+      设置面板底部实时显示「收到 / 去重跳过 / 出卡」三个计数，每一步都看得见。
+    </p>
+  </div>
+</section>
+
+<section id="features" style="background: var(--bg-2);">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-kicker">Features</div>
+      <h2>核心功能</h2>
+      <p class="sec-sub">每一件都对着面试桌上的一个具体问题。</p>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-ico">📝</div>
+        <h3>思路卡</h3>
+        <p>2–4 条 ≤18 字的要点大纲，带简历锚点。<br>整卡淡入，不打字机，扫一眼就能开口。</p>
+      </div>
+      <div class="card">
+        <div class="card-ico">🎙️</div>
+        <h3>双轨采集 + 回声门</h3>
+        <p>系统回环 + 麦克风两条轨，逐 100ms 比能量判「谁在说」。<br>你自己的回答只进上下文，不会出卡。</p>
+      </div>
+      <div class="card">
+        <div class="card-ico">🔊</div>
+        <h3>系统声音回环</h3>
+        <p><code style="font-family:var(--font-num)">getDisplayMedia</code> + loopback 抓系统混音，无需虚拟声卡。<br>Teams / 飞书 / 腾讯会议都能用。</p>
+      </div>
+      <div class="card">
+        <div class="card-ico">📱</div>
+        <h3>手机端接入</h3>
+        <p>局域网 WS 通道 + 每次启动随机配对码。<br>无码或错码一律 401 拒连。</p>
+      </div>
+      <div class="card">
+        <div class="card-ico">📊</div>
+        <h3>复盘</h3>
+        <p>全场记录 → 问答配对 → 模型点评（带校验）→ Markdown。<br>没 Key 自动退到本地规则引擎，不给空白页。</p>
+      </div>
+      <div class="card">
+        <div class="card-ico">⚡</div>
+        <h3>稳定前缀缓存预热</h3>
+        <p>启动时用 <code style="font-family:var(--font-num)">max_tokens=1</code> 预热 KV cache。<br>第一张卡出得更快，也不浪费 token。</p>
+      </div>
+      <div class="card">
+        <div class="card-ico">🧪</div>
+        <h3>演示模式</h3>
+        <p>没填 API Key 也能跑，返回结构完整的本地模板卡。<br>下载完就能先看懂它是什么。</p>
+      </div>
+      <div class="card">
+        <div class="card-ico">⏳</div>
+        <h3>繁忙自动退避</h3>
+        <p>官方限流（429/503/「拥挤」）不丢请求，<br>默认每 5 分钟自动重试，浮窗黄点倒计时。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="gates">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-kicker">Why we refuse</div>
+      <h2>「不代答」是怎么被强制的</h2>
+      <p class="sec-sub">五道闸门依次过，缺一不可。它们是校验代码、不是提示词，模型飘了也拦得住。</p>
+    </div>
+
+    <div class="gates">
+      <div class="gate">
+        <div class="gate-code">SENTENCE_END</div>
+        <div class="gate-cond">每条必须以句末标点收尾</div>
+        <div class="gate-why">不是完整句子的「要点」会像草稿，扫读时反而拖慢。中英标点与「…」结尾一律算过关。</div>
+      </div>
+      <div class="gate">
+        <div class="gate-code">FIRST_PERSON</div>
+        <div class="gate-cond">必须以「我」开头</div>
+        <div class="gate-why">锚定成你亲口讲的第一人称，避免给出「应当做…」「建议…」这类旁观者的口吻。</div>
+      </div>
+      <div class="gate">
+        <div class="gate-code">TOO_LONG</div>
+        <div class="gate-cond">汉字 ≤ 18 个</div>
+        <div class="gate-why">只统计汉字（<code style="font-family:var(--font-num)">countCJK</code>），英文单词和数字不占额。<br>长了就是代答的口子。</div>
+      </div>
+      <div class="gate">
+        <div class="gate-code">CONNECTIVE</div>
+        <div class="gate-cond">禁用成文连接词</div>
+        <div class="gate-why">首先/其次/最后/总之/综上/因此… 这些词是把要点串成成稿的前兆，命中即打回。</div>
+      </div>
+      <div class="gate">
+        <div class="gate-code">NUMBER_NOT_IN_RESUME</div>
+        <div class="gate-cond">数字必须在简历里出现过</div>
+        <div class="gate-why">防止模型给你脑补数字 —— 面试官一追问就露馅。<br>只认简历白名单里的数字。</div>
+      </div>
+    </div>
+
+    <div class="gates-note">
+      整卡还要再过三关：
+      要点数在 <b>2–4 条</b> 之间；至少有一条要点挂上简历锚点（<code>anchorId</code>），
+      否则判为 <code>NO_ANCHOR</code> 拒出；<code>caution</code> 区只能从 <code>数字</code> / <code>追问</code> / <code>风险</code> 三种类型里选。
+      <br>任何一关不过 —— 拒绝直接出卡，带 <b>修正指令</b> 重新生成，最多重试 3 次。
+      3 次仍不过则宁可退回占位，也绝不出一张「代答」的卡。
+    </div>
+  </div>
+</section>
+
+<section id="shots" style="background: var(--bg-2);">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-kicker">Screenshots</div>
+      <h2>几张截图</h2>
+      <p class="sec-sub">Windows 11 · 浅色主题，实际界面。</p>
+    </div>
+
+    <div class="gallery">
+      <figure class="shot">
+        <img src="./assets/shot-usage.png" alt="浮窗使用态：面试官提问后，浮窗给出三到四条思路要点">
+        <figcaption>使用态 —— 面试官提问后浮窗给出的要点大纲，每条都是完整短句、带简历锚点。</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="./assets/shot-echo-gate.png" alt="回声门 unknown 判定：系统回环和麦克风能量接近时，浮窗不出卡">
+        <figcaption>回声门 —— 系统回环与麦克风能量接近、无法判定谁在说时判为 <code style="font-family:var(--font-num)">unknown</code>，宁多一张卡也不丢一个问题，也不在你自己说话时乱出卡。</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="./assets/shot-capture.png" alt="音频采集窗口：选择系统声音回环与麦克风双轨">
+        <figcaption>音频采集 —— 勾选系统声音回环 + 麦克风，即启用双轨判段。</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="./assets/shot-settings.png" alt="设置与演练面板：模型、时间窗、退避、复盘与手机端配对码">
+        <figcaption>设置 —— 模型 / 时间窗 / 退避 / 复盘 / 手机端配对码，以及一键演练按钮，所有参数不写死。</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="bounds">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-kicker">Boundaries</div>
+      <h2>边界声明</h2>
+      <p class="sec-sub">写清楚它做什么、也写清楚它不做什么。</p>
+    </div>
+
+    <div class="rules">
+      <div class="rule"><b>只出要点，不出成稿</b>不会给你一段能直接念出来的答案，也不会自动贴到对话框里。</div>
+      <div class="rule"><b>不做隐蔽采集</b>浮窗默认不穿透、不隐藏；「穿透」模式是热键开关，不是默认状态。</div>
+      <div class="rule"><b>音频仅本机处理</b>麦克风和系统回环音频在本地做 VAD 与判段，不上传；只有判段后的文字送模型。</div>
+      <div class="rule"><b>是否告知对方由你决定</b>本项目只提供「提示」这一层能力，使用场景合规由使用者负责。</div>
+    </div>
+  </div>
+</section>
+
+<section id="usage" style="background: var(--bg-2);">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-kicker">Get started</div>
+      <h2>用起来</h2>
+      <p class="sec-sub">解压即用，没有配置向导。</p>
+    </div>
+
+    <div class="rules">
+      <div class="rule"><b>1 · 下载</b>从 GitHub Releases 取 <code style="font-family:var(--font-num)">.exe</code> 安装版或便携版，Windows 10 / 11。</div>
+      <div class="rule"><b>2 · 配 Key（可选）</b>没 Key 也能跑 —— 自动进演示模式，返回本地模板卡。</div>
+      <div class="rule"><b>3 · 开采集</b>开始面试前勾选「系统声音回环」+「麦克风」，让回声门接管判段。</div>
+      <div class="rule"><b>4 · 面试</b>面试官一提问，浮窗出卡；你自己组织语言回答。</div>
+    </div>
+
+    <table style="margin-top: 24px">
+      <thead><tr><th style="width:200px">热键</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>H</kbd></td><td>显示 / 隐藏浮窗</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>M</kbd></td><td>切换鼠标穿透（默认关闭）</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>K</kbd></td><td>打开 / 关闭设置面板</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd></td><td>浮窗不透明度 +5% / −5%</td></tr>
+      </tbody>
+    </table>
+
+    <p class="note" style="margin-top:16px">
+      热键在设置里可改；手机端配对码每次启动随机，配对码不落盘，错码一律 401 拒连。
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <a href="https://github.com/ElvisLoo/job-bingo/blob/main/LICENSE">MIT 开源</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/ElvisLoo/job-bingo">GitHub 仓库</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/ElvisLoo/job-bingo/issues">提交反馈</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/ElvisLoo/job-bingo/releases">Releases</a>
+    </div>
+    <div style="margin-top:10px">
+      <a href="https://jikegang.com">极客港</a>
+      <span class="sep">·</span>
+      <span>面必过 v0.4.0</span>
+      <span class="sep">·</span>
+      <span>本站仅作产品介绍，下载与更新以 GitHub Releases 为准</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var KEY = 'jb-site-theme';
+  var btn = document.getElementById('themeBtn');
+  var root = document.documentElement;
+
+  function setTheme(t) {
+    root.setAttribute('data-theme', t);
+    if (btn) btn.textContent = t === 'night' ? '浅色' : '深色';
+  }
+
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  if (saved === 'paper' || saved === 'night') {
+    setTheme(saved);
+  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    setTheme('night');
+  }
+
+  if (btn) {
+    btn.addEventListener('click', function () {
+      var next = root.getAttribute('data-theme') === 'night' ? 'paper' : 'night';
+      setTheme(next);
+      try { localStorage.setItem(KEY, next); } catch (e) {}
+    });
+  }
+})();
+</script>
+
+</body>
+</html>
